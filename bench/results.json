@@ -45,5 +45,16 @@
     "crossoverNvsRecursive": "~5",
     "perTxStroops": { "naiveSingle": 30556, "batchM4": 50397, "recursiveK4": 136009 },
     "note": "Recursive line is structurally flat in N (single UltraHonk verify regardless of inner count). Naive line is linear (30,556 stroops × N). Crossover with naive at N≈4.5; at N=64 the recursive line is ~14× cheaper than naive, at N=1024 it is ~230× cheaper. Batched Groth16 is the cheapest at small N (no UltraHonk overhead) but grows with N+3 pairings; the recursive line wins outright at large N."
+  },
+  "portability": {
+    "claim": "Same BN254 Groth16 proof bytes (Tier 1 single-proof) verify on both Stellar testnet AND EVM. Demonstrates the curve-portability that makes a single privacy-pool circuit portable across ecosystems.",
+    "tier1ProofTxStellar": "99b168d8dae99328021fddcf4ab0889ae8916fa02b834f90e88d5a2fd1e3350d",
+    "evm": {
+      "tool": "foundry/forge test --gas-report",
+      "verifierContract": "src/Verifier.sol (snarkjs auto-generated from circuits/groth16_batch/target/circuit_final.zkey)",
+      "verifyProofGas": 195613,
+      "deploymentGas": 364378,
+      "note": "Local Foundry EVM (anvil). Gas, not stroops — different fee markets, not directly comparable in absolute units, but the SAME proof bytes are accepted by both verifiers because both implement the standard BN254 Groth16 pairing equation."
+    }
   }
 }
