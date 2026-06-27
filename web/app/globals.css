@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fontshare faces + JetBrains Mono. Fontshare's CSS API returns @font-face
+   declarations for both Clash Display and Switzer in one request. */
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=switzer@400,500,600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0D1320;
+  color: #ECEBE3;
+  font-family: "Switzer", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* §1: measurement grid bleeding behind everything, like graph paper. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right,  rgba(36, 48, 71, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(36, 48, 71, 0.18) 1px, transparent 1px);
+  background-size: 56px 56px;
+  z-index: 0;
+}
+
+/* §6 accessibility: visible focus rings in --signal. */
+*:focus-visible {
+  outline: 2px solid #4AD8C0;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* §1 label convention: uppercase tracked mono labels */
+.label {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8125rem;
+  color: #8A93A6;
+}
+
+/* §5: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
