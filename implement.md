@@ -27,11 +27,11 @@ BATCH_PROOF_SYS   = "Groth16 (Circom/snarkjs)"        # batch/MSM track
      __PIN_HERE__ tokens are filled at install time on this machine.
      - noirup → nargo            (KNOWN: 1.0.0-beta.9   – pairs with bb 0.87.0 and matches vendored rs-soroban-ultrahonk)
      - bbup   → bb (Barretenberg)(KNOWN: 0.87.0         – the bb version embedded in vendored rs-soroban-ultrahonk)
-     - rustup → rust stable      (record version: __PIN_HERE__; rustc ≥ 1.89.0 required by soroban-sdk 26)
-     - stellar-cli              (KNOWN: 26.1.0         – matches testnet Protocol 26 since 2026-04-16)
+     - rustup → rust stable      (RESOLVED: rustc 1.96.0 / cargo 1.96.0 – ≥ 1.89.0 required by soroban-sdk 26)
+     - stellar-cli              (KNOWN: 26.1.0         – matches testnet Protocol 26 since 2026-04-16; installed from the prebuilt x86_64-unknown-linux-gnu release tarball, not cargo install, to avoid dragging in libdbus-1-dev and other host system libs)
      - soroban-sdk (Cargo dep)  (KNOWN: 26.0.1         – workspace pin in vendored rs-soroban-ultrahonk)
-     - node ≥ 20, pnpm           (record versions: __PIN_HERE__)
-     - circom 2.x, snarkjs       (record versions: __PIN_HERE__)
+     - node, pnpm                (RESOLVED: node 22.23.1 LTS, pnpm 11.9.0 – bumped from the §0 floor of "node ≥ 20" because pnpm 11 requires node ≥ 22.13; nvm-managed, default alias = 22)
+     - circom 2.x, snarkjs       (RESOLVED: circom 2.2.3 from iden3/circom HEAD a100faed, snarkjs 0.7.6 via npm -g)
 ```
 
 The `__PIN_HERE__` tokens are the only blanks in this document and they exist to be filled by running the installer in step 0.1 – they are recorded facts, not placeholders for design decisions.
