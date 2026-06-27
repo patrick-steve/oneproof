@@ -254,6 +254,26 @@ Record per (mode, N): on-chain CPU instructions, resource fee (stroops), number 
 
 ## §7. Deployment
 
+### Deployed contract IDs (testnet)
+
+- **groth16_batch_verifier** (Tier 1):
+    contract:    `CDXK7XNCTAGNT73NNQ6POAOSTP2KZVQ5IW6ZWL25ZEYNMRTARBKJZQUO`
+    deploy tx:   `be74915f374310eb6ebc2803a1f4fd057871465b96b019031da3280a0d04b91d`
+    deployed:    2026-06-27 via bench/scripts/deploy-and-smoke.sh
+    initialized: yes, with circuits/groth16_batch/vkey.json
+    smoke:       verify_one(sanity proof) → true
+- **oneproof_verifier** (Tier 2): *not yet deployed*
+
+Two operational paper cuts from the spike commits worth knowing:
+1. `stellar contract deploy` returns once the tx is on the RPC node it
+   talks to, but subsequent invokes can hit a node that hasn't synced
+   yet. Poll for contract reachability after deploy (deploy-and-smoke.sh
+   does this with a 30s timeout loop).
+2. Initialize-then-verify can hit the same lag — `initialize` returns
+   but the state isn't yet visible to the next RPC call, so verify
+   sees `Error(Contract, #2) = NotInitialized`. Retry the invoke once
+   with a 5s sleep; it always clears.
+
 - Contracts: `scripts/deploy.sh` builds and deploys both Soroban contracts to testnet, writes deployed contract IDs into `web/.env.local` and back into this file's §0 block (record them, do not leave blank).
 - Web: Next.js app deploys to Vercel. Dashboard reads `bench/results.json` for the static curve and calls the prover/submit path for live single-N runs.
 - README: one-command reproduce – clone, install pinned toolchain, `scripts/build.sh && scripts/deploy.sh && scripts/bench.sh`, then `pnpm dev` in `web/`.

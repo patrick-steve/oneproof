@@ -5,7 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, panic_with_error, contracterror, symbol_short, Env, Vec};
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, BytesN, Env, Vec};
 
 mod transcript;
 mod types;
@@ -14,7 +14,12 @@ mod verify;
 #[cfg(test)]
 mod test;
 
-use types::{Groth16ProofBytes, PublicInputs, VkBytes};
+use types::{Groth16ProofBytes, VkBytes};
+
+// PublicInputs is a `type` alias internally for readability, but Soroban's
+// contract-spec generator doesn't expand type aliases — they show up as
+// "Missing Entry" at invoke time. So public function signatures use the
+// concrete `Vec<BytesN<32>>` directly.
 
 #[contracttype]
 #[derive(Clone, Copy)]
@@ -56,6 +61,26 @@ impl Groth16BatchVerifier {
             .unwrap_or_else(|| panic_with_error!(&env, Error::NotInitialized))
     }
 
+    /// Verify ONE proof against the stored vk. This is the "naive baseline"
+    /// endpoint — running it N times costs N pairing checks (= 4N pairings
+    /// plus N tx-level overheads). Same contract as batch_verify so the
+    /// comparison isn't muddied by deploy-time differences.
+    ///
+    /// Implemented as batch_verify with M=1 (math reduces to the standard
+    /// Groth16 check; the +3 extra pairings are the αβ/γ/δ vk terms that
+    /// any single-proof verifier needs anyway).
+    pub fn verify_one(
+        env: Env,
+        proof: Groth16ProofBytes,
+        public_inputs: Vec<BytesN<32>>,
+    ) -> bool {
+        let mut proofs = Vec::new(&env);
+        proofs.push_back(proof);
+        let mut all_inputs = Vec::new(&env);
+        all_inputs.push_back(public_inputs);
+        Self::batch_verify(env, proofs, all_inputs)
+    }
+
     /// Batch-verify M proofs against the stored vk. Returns true iff the
     /// combined pairing check passes. Emits a `BatchVerified(count)` event
     /// on success. Caller is responsible for passing root/nullifier
@@ -63,7 +88,7 @@ impl Groth16BatchVerifier {
     pub fn batch_verify(
         env: Env,
         proofs: Vec<Groth16ProofBytes>,
-        public_inputs: Vec<PublicInputs>,
+        public_inputs: Vec<Vec<BytesN<32>>>,
     ) -> bool {
         let vk: VkBytes = env
             .storage()

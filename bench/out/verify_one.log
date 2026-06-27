@@ -1,0 +1,6 @@
+ℹ️  Simulating transaction…
+ℹ️  Signing transaction: 8bf550ed31438bb6cf303c3663b15868242b24e65439cf015cfd394499b15b6f
+🌎 Sending transaction…
+✅ Transaction submitted successfully!
+🔗 https://stellar.expert/explorer/testnet/tx/8bf550ed31438bb6cf303c3663b15868242b24e65439cf015cfd394499b15b6f
+📅 CDXK7XNCTAGNT73NNQ6POAOSTP2KZVQ5IW6ZWL25ZEYNMRTARBKJZQUO - Success - Event: [{"symbol":"BatchOk"}] = {"u32":1}
