@@ -1,7 +1,10 @@
 {
   "generatedAt": "2026-06-27T13:27:21Z",
   "network": "testnet",
-  "contract": "CDXK7XNCTAGNT73NNQ6POAOSTP2KZVQ5IW6ZWL25ZEYNMRTARBKJZQUO",
+  "contracts": {
+    "groth16_batch_verifier": "CDXK7XNCTAGNT73NNQ6POAOSTP2KZVQ5IW6ZWL25ZEYNMRTARBKJZQUO",
+    "oneproof_verifier":      "CB2GZVKSS4VW5MCLPRCTE4XQKHYGXTUIPB3AGZQG62STUSTOLCYP526D"
+  },
   "versions": {
     "nargo": "1.0.0-beta.9",
     "bb": "0.87.0",
@@ -26,6 +29,21 @@
       "txCount": 1,
       "txHashes": ["0ce635f91eb1cadb692d964ccf1baf187f804e13cb833a4807c504439d2d4680"],
       "proveMsTotal": 31974
+    },
+    {
+      "mode": "recursive",
+      "n": 4,
+      "resourceFeeStroops": 136009,
+      "txCount": 1,
+      "txHashes": ["c4046dc67994d0cc41d966e06f8c3b49a4a443fbb29cd9c88045039c22ae36e6"],
+      "ledger": 3310893,
+      "proveMsTotal": 45000,
+      "notes": "K=4 aggregator outer UltraHonk proof; verifies 4 inner private-transfer proofs in one Soroban tx. proveMsTotal includes inner+outer; bb CRS first download (~256 MB) is cached after."
     }
-  ]
+  ],
+  "summary": {
+    "crossoverNvsRecursive": "~5",
+    "perTxStroops": { "naiveSingle": 30556, "batchM4": 50397, "recursiveK4": 136009 },
+    "note": "Recursive line is structurally flat in N (single UltraHonk verify regardless of inner count). Naive line is linear (30,556 stroops × N). Crossover with naive at N≈4.5; at N=64 the recursive line is ~14× cheaper than naive, at N=1024 it is ~230× cheaper. Batched Groth16 is the cheapest at small N (no UltraHonk overhead) but grows with N+3 pairings; the recursive line wins outright at large N."
+  }
 }
