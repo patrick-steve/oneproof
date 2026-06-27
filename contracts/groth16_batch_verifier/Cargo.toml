@@ -2,13 +2,18 @@
 name = "groth16_batch_verifier"
 version = "0.1.0"
 edition = "2021"
-# soroban-sdk version pinned in implement.md §0.1.
-# Adapted from vendor/stellar/soroban-examples/groth16_verifier per implement.md §3.2.
+publish = false
+# implement.md §3.2 — batched Groth16 verifier on BN254 + MSM.
 
 [lib]
 crate-type = ["cdylib"]
+doctest = false
 
 [dependencies]
+soroban-sdk = { version = "26.0.1", default-features = false }
+
+[dev-dependencies]
+soroban-sdk = { version = "26.0.1", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"
@@ -19,3 +24,7 @@ debug-assertions = false
 panic = "abort"
 codegen-units = 1
 lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
