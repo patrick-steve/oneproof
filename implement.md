@@ -21,11 +21,15 @@ BATCH_PROOF_SYS   = "Groth16 (Circom/snarkjs)"        # batch/MSM track
 **Toolchain – do not guess versions. Install via the version managers and pin whatever they resolve, because Noir↔bb compatibility is version-sensitive and a mismatch is the single most common way this build stalls.**
 
 ```
-0.1  Install and pin, recording exact resolved versions back into this block:
-     - noirup → nargo            (record version: __PIN_HERE__)
-     - bbup   → bb (Barretenberg)(record version: __PIN_HERE__; MUST match the nargo it pairs with)
-     - rustup → rust stable      (record version: __PIN_HERE__)
-     - stellar-cli (soroban)     (record version: __PIN_HERE__)
+0.1  Install and pin. The four marked KNOWN were determined by lookup
+     before install and are constrained by external alignment (see commit
+     msg for the lookup trail); they are not negotiable per-machine. The
+     __PIN_HERE__ tokens are filled at install time on this machine.
+     - noirup → nargo            (KNOWN: 1.0.0-beta.9   – pairs with bb 0.87.0 and matches vendored rs-soroban-ultrahonk)
+     - bbup   → bb (Barretenberg)(KNOWN: 0.87.0         – the bb version embedded in vendored rs-soroban-ultrahonk)
+     - rustup → rust stable      (record version: __PIN_HERE__; rustc ≥ 1.89.0 required by soroban-sdk 26)
+     - stellar-cli              (KNOWN: 26.1.0         – matches testnet Protocol 26 since 2026-04-16)
+     - soroban-sdk (Cargo dep)  (KNOWN: 26.0.1         – workspace pin in vendored rs-soroban-ultrahonk)
      - node ≥ 20, pnpm           (record versions: __PIN_HERE__)
      - circom 2.x, snarkjs       (record versions: __PIN_HERE__)
 ```
@@ -36,8 +40,27 @@ The `__PIN_HERE__` tokens are the only blanks in this document and they exist to
 
 ```
 - UltraHonk Soroban verifier:  yugocabrio/rs-soroban-ultrahonk      (pin SHA)
-- Groth16 Soroban verifier:    stellar/soroban-examples /groth16_verifier  (pin SHA)
-- Reference E2E tutorials (read, do not vendor):
+    – actively hardened by Nethermind on top of nargo 1.0.0-beta.9 / bb 0.87.0;
+      do not chase Noir HEAD. The workspace also ships a `tornado_classic`
+      privacy-mixer contract we use as a reference for the inner-transfer
+      circuit pattern in §4.1.
+```
+
+**Reference repos (clone into `/vendor` for reading, do not depend on):**
+
+```
+- stellar/soroban-examples                                          (pin SHA)
+    – `groth16_verifier/` is BLS12-381, wrong curve for our project. Useful
+      only as a structural reference for the pairing-check pattern translated
+      from the standard Solidity Groth16 verifier. We implement our own
+      BN254 verifier in `contracts/groth16_batch_verifier` against the
+      `soroban_sdk::crypto::bn254` host functions directly (see §3.2).
+    – `privacy-pools/` and `import_ark_bn254/` are useful adjacent patterns.
+```
+
+**Reference E2E tutorials (read, do not vendor):**
+
+```
     jamesbachini.com/noir-on-stellar      (Noir → Soroban path)
     jamesbachini.com/circom-on-stellar    (Circom/Groth16 → Soroban path)
 ```
@@ -116,11 +139,20 @@ Commit the spike as `tier0-spike` with the resolved versions written into §0.
 A small but real statement so the proofs are not trivial. Use the same private-transfer shape as the Noir inner circuit but in Circom: a Poseidon commitment `c = Poseidon(secret, amount, blinding)`, a Merkle membership of `c` in a depth-`D` tree (pin `D = 16`), and a nullifier `nf = Poseidon(secret, leafIndex)`. Public inputs: Merkle root, nullifier. Private: secret, amount, blinding, path. Run the Groth16 trusted setup (Powers of Tau + circuit-specific), commit the verifying key.
 
 ### 3.2 Batch verifier contract (`contracts/groth16_batch_verifier`)
-Adapt the vendored Stellar Groth16 verifier to verify M proofs sharing one verifying key in a single call, via random linear combination:
+Implement on `soroban_sdk::crypto::bn254` directly. The BLS12-381 verifier
+in `stellar/soroban-examples/groth16_verifier` is a *structural* reference
+for the pairing-check pattern, not a fork target (see §0). Verifies M
+proofs sharing one verifying key in a single call, via random linear
+combination:
 
 ```
 Given M proofs {(A_j, B_j, C_j, pub_j)} for verifying key vk:
-  - Sample challenge scalars r_j = Poseidon(transcript, j)   (Fiat–Shamir; bind to all inputs)
+  - Build a canonical-byte-order transcript:
+       T = vk_hash || M || (A_j || B_j || C_j || pub_j  for j in 0..M)
+    Every (A_j, B_j, C_j, pub_j) MUST be absorbed BEFORE any r_j is derived
+    – ordering bug here breaks soundness.
+  - Derive challenge seed:    s   = Keccak256(T)
+  - Sample challenge scalars: r_j = Keccak256(s || j)   (reduced mod Fr)
   - Compute, with the BN254 MSM host function (Protocol 26):
        A* = Σ r_j · A_j
        C* = Σ r_j · C_j
@@ -129,6 +161,12 @@ Given M proofs {(A_j, B_j, C_j, pub_j)} for verifying key vk:
     collapses the M Groth16 equations into (one multi-pairing instead of M).
   - Accept iff the batched check holds.
 ```
+
+Hash choice: Keccak-256, not Poseidon. Matches the UltraHonk verifier's
+own Fiat–Shamir choice (see `vendor/rs-soroban-ultrahonk/src/transcript.rs`),
+keeps the on-chain code uniform across both tracks, and avoids vendoring
+the MDS matrix + round constants that CAP-0075 requires the caller to
+supply. Rationale in §9.
 
 Soundness: a forged proof passes the random combination with negligible probability over the r_j. The MSM is the host-function call – this is the line that makes the contract cheap and is the whole reason this is a Stellar project and not a generic one. Emit an event `BatchVerified{ count: M, root, nullifiers }`.
 
@@ -217,3 +255,4 @@ Record per (mode, N): on-chain CPU instructions, resource fee (stroops), number 
 - **UltraHonk proof too large / verify too costly on Soroban:** acceptable – that *is* a finding. Report it on the dashboard. The recursive line being flat-but-high still beats naive at modest N; show the crossover point.
 - **Testnet flaky during judging:** `results.json` is committed; the dashboard renders the curve from it without a live network. Live runs are a bonus, not a dependency.
 - **Recursion infeasible on the stack:** Tier 0 catches this on day one. Fall back to Tier 1, which is a complete submission. This is the entire reason for the ladder.
+- **Why we do not use Poseidon as a host function:** CAP-0075's `poseidon_permutation` requires the caller to supply t, d, round counts, MDS matrix, and round constants – there is no standard preset. Our on-chain verifier never recomputes circuit-internal Poseidon hashes (those happen inside the SNARK), so we have no functional need for it. Keccak-256 is sufficient for Fiat–Shamir in §3.2 and is what UltraHonk already uses (§4.3), so we use Keccak everywhere on-chain and treat CAP-0075 as out of scope. The thesis rests on CAP-0074 (BN254 ops) and CAP-0080 (BN254 MSM); both are exercised.
