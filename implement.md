@@ -39,7 +39,9 @@ The `__PIN_HERE__` tokens are the only blanks in this document and they exist to
 **Forks to vendor (clone into `/vendor`, pin commit SHAs):**
 
 ```
-- UltraHonk Soroban verifier:  yugocabrio/rs-soroban-ultrahonk      (pin SHA)
+- UltraHonk Soroban verifier:  yugocabrio/rs-soroban-ultrahonk
+    – pinned at SHA 661db07200f890b1bd9a7349ed787c70a706dd12 (HEAD of main as of 2026-06-27)
+      via git submodule at vendor/rs-soroban-ultrahonk.
     – actively hardened by Nethermind on top of nargo 1.0.0-beta.9 / bb 0.87.0;
       do not chase Noir HEAD. The workspace also ships a `tornado_classic`
       privacy-mixer contract we use as a reference for the inner-transfer
@@ -49,7 +51,9 @@ The `__PIN_HERE__` tokens are the only blanks in this document and they exist to
 **Reference repos (clone into `/vendor` for reading, do not depend on):**
 
 ```
-- stellar/soroban-examples                                          (pin SHA)
+- stellar/soroban-examples
+    – pinned at SHA 7b168174ae1268dab91a0190d80a94ab7ff41b59 (v23.0.0 + 18 commits
+      as of 2026-06-27) via git submodule at vendor/soroban-examples.
     – `groth16_verifier/` is BLS12-381, wrong curve for our project. Useful
       only as a structural reference for the pairing-check pattern translated
       from the standard Solidity Groth16 verifier. We implement our own

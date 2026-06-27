@@ -1,0 +1,6 @@
+[submodule "vendor/rs-soroban-ultrahonk"]
+	path = vendor/rs-soroban-ultrahonk
+	url = https://github.com/yugocabrio/rs-soroban-ultrahonk.git
+[submodule "vendor/soroban-examples"]
+	path = vendor/soroban-examples
+	url = https://github.com/stellar/soroban-examples.git
