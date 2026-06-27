@@ -1,0 +1,25 @@
+# Force LF for shell scripts and other text-y formats that POSIX tools
+# parse strictly. Without this, git on Windows with autocrlf=true checks
+# them out with \r\n, which breaks `#!/usr/bin/env bash` shebangs under
+# WSL (env: $'bash\r': No such file or directory). Bit us once during
+# Tier 0 spike 2.2 — do not re-walk that.
+
+* text=auto
+
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.nr        text eol=lf
+*.toml      text eol=lf
+*.circom    text eol=lf
+Makefile    text eol=lf
+*.lock      text eol=lf
+
+# Binary / artifact formats — never normalize
+*.png       binary
+*.jpg       binary
+*.gz        binary
+*.wasm      binary
+*.zkey      binary
+*.ptau      binary
+*.proof     binary
+*.vk        binary
