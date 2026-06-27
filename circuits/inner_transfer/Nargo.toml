@@ -2,6 +2,6 @@
 name = "inner_transfer"
 type = "bin"
 authors = ["OneProof"]
-# compiler_version pinned in implement.md §0.1 once `noirup` resolves nargo.
+compiler_version = ">=1.0.0"
 
 [dependencies]

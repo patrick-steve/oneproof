@@ -262,7 +262,17 @@ Record per (mode, N): on-chain CPU instructions, resource fee (stroops), number 
     deployed:    2026-06-27 via bench/scripts/deploy-and-smoke.sh
     initialized: yes, with circuits/groth16_batch/vkey.json
     smoke:       verify_one(sanity proof) → true
-- **oneproof_verifier** (Tier 2): *not yet deployed*
+- **oneproof_verifier** (Tier 2 — outer UltraHonk verifier, vendored fork wasm reused unchanged):
+    contract:        `CB2GZVKSS4VW5MCLPRCTE4XQKHYGXTUIPB3AGZQG62STUSTOLCYP526D`
+    deploy tx:       `f73e839a7b9930681aed56ec45571a5054e47574e1572d72d016ad89cd502e35`
+    verify-proof tx: `c4046dc67994d0cc41d966e06f8c3b49a4a443fbb29cd9c88045039c22ae36e6`
+    deployed:        2026-06-27 via bench/scripts/deploy-oneproof.sh
+    initialized:     yes, at constructor time with the K=4 aggregator vk
+    smoke:           verify_proof(outer proof aggregating 4 inner private-transfer
+                     UltraHonk proofs) → submitted on-chain, did not revert
+    Note: this is the SAME wasm as the rs-soroban-ultrahonk fork — we
+    redeploy it pointing at our aggregator vk. No new contract code
+    needed; the fork's verify_proof endpoint handles any UltraHonk proof.
 
 Two operational paper cuts from the spike commits worth knowing:
 1. `stellar contract deploy` returns once the tx is on the RPC node it
