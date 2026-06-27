@@ -1,0 +1,15 @@
+{
+  "name": "oneproof-prover",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "oneproof": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,21 @@
+[package]
+name = "groth16_batch_verifier"
+version = "0.1.0"
+edition = "2021"
+# soroban-sdk version pinned in implement.md §0.1.
+# Adapted from vendor/stellar/soroban-examples/groth16_verifier per implement.md §3.2.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true

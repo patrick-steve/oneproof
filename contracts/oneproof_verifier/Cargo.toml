@@ -1,0 +1,21 @@
+[package]
+name = "oneproof_verifier"
+version = "0.1.0"
+edition = "2021"
+# soroban-sdk version pinned in implement.md §0.1 (Tier 0 setup).
+# Adapted from vendor/rs-soroban-ultrahonk per implement.md §4.3.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
