@@ -1,10 +1,31 @@
 {
-  "generatedAt": null,
+  "generatedAt": "2026-06-27T13:27:21Z",
   "network": "testnet",
+  "contract": "CDXK7XNCTAGNT73NNQ6POAOSTP2KZVQ5IW6ZWL25ZEYNMRTARBKJZQUO",
   "versions": {
-    "nargo": null,
-    "bb": null,
-    "soroban": null
+    "nargo": "1.0.0-beta.9",
+    "bb": "0.87.0",
+    "soroban": "26.1.0",
+    "circom": "2.2.3",
+    "snarkjs": "0.7.6"
   },
-  "runs": []
+  "runs": [
+    {
+      "mode": "naive",
+      "n": 4,
+      "resourceFeeStroops": 122224,
+      "txCount": 4,
+      "perTxStroops": [30556,30556,30556,30556],
+      "txHashes": ["99b168d8dae99328021fddcf4ab0889ae8916fa02b834f90e88d5a2fd1e3350d","2723dc3a2f276c5ab51063169bb31e98c083dd638e5619b5ac63dd1ff55911f2","2ba439ebea1e7d4d0f5b5de130d2e6db6d97f221eed401de502cc478fe089fb7","31325e708c33f2380f76044e02a063412ee356e4ce21cafb5c786f57707564fa"],
+      "proveMsTotal": 31974
+    },
+    {
+      "mode": "batch",
+      "n": 4,
+      "resourceFeeStroops": 50397,
+      "txCount": 1,
+      "txHashes": ["0ce635f91eb1cadb692d964ccf1baf187f804e13cb833a4807c504439d2d4680"],
+      "proveMsTotal": 31974
+    }
+  ]
 }
