@@ -137,6 +137,30 @@ Goal: prove the hero is reachable before writing product code. Two independent c
 
 Commit the spike as `tier0-spike` with the resolved versions written into §0.
 
+### Tier 0 outcomes (2026-06-27)
+
+Both spikes GREEN — proceeding on the full plan (Tier 1 then Tier 2).
+
+- **2.1 (off-chain recursion):** `circuits/_tier0_spike/build.sh` returned
+  green on first run via the bb CLI path. Key facts captured in
+  `circuits/_tier0_spike/README.md` — bb.js 0.87.0 cannot recursively prove,
+  use the CLI with `--honk_recursion 1 --init_kzg_accumulator --oracle_hash
+  poseidon2` for inner and `--oracle_hash keccak` for outer. The library
+  function at v0.87.0 is `verify_ultrahonk_proof` (not the later
+  `verify_honk_proof_non_zk`). Used by §4.2 when the real aggregator lands.
+- **2.2 (on-chain verify):** vendored `rs-soroban-ultrahonk` built and
+  deployed to Stellar testnet via the fork's `run_testnet_e2e.sh`. One
+  trivial UltraHonk proof (from `simple_circuit`) verified on-chain.
+    - Verifier contract:  `CBVTM5WW6C4YCRUFQ6BAIT2BXBCT6OQQGWMQNDAY7GDS37QRGUCGNLJP`
+    - Deploy tx:          `3b1e85d3986fab6f43a6290070041eac427099e233ecd6b23b71e3d4f391c621`
+    - Verify-proof tx:    `db7b84e40b968df207fd78ea2d02a80d7d4a956637203afb2ffc41da9257d42c`
+    - Source account:     `alice` (stellar-cli identity, funded via friendbot)
+    - Soroban target:     `wasm32v1-none` (Protocol 26)
+
+These are vendored-fork smoke artifacts. The §7 deploy slot is still empty
+until OUR `contracts/oneproof_verifier` (adapted from the fork) deploys in
+Tier 2 §4.3.
+
 ## §3. Tier 1 – batch verification (the floor, ships regardless)
 
 ### 3.1 Inner Circom circuit (`circuits/groth16_batch/circuit.circom`)
