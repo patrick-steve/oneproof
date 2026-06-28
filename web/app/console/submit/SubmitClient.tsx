@@ -9,13 +9,21 @@
 //   3. Sign + submit via Freighter wallet. Requires the extension installed
 //      and an account funded on testnet. We use the user's account as the
 //      source — the tx fee comes from their XLM, not ours.
+//
+// stellar-sdk (~70 KB minified) is loaded lazily inside the handlers so
+// it's not in the initial route bundle. freighter-api stays eager (small).
+// Wallet state lives in the shared WalletContext so connection persists
+// across tab navigation.
 
-import { useEffect, useState } from "react";
-import * as StellarSdk from "@stellar/stellar-sdk";
-import * as freighter from "@stellar/freighter-api";
+import { useState } from "react";
 import { CONTRACTS, NETWORK, txUrl } from "@/lib/stellar";
+import { useWallet } from "../WalletContext";
 
-type Stage = "idle" | "loading-example" | "ready" | "simulating" | "simulated" | "signing" | "submitting" | "submitted" | "error";
+type Stage =
+  | "idle" | "loading-example" | "ready"
+  | "simulating" | "simulated"
+  | "signing" | "submitting" | "submitted"
+  | "error";
 
 interface ProofBundle {
   proofBytes: Uint8Array;
@@ -26,36 +34,17 @@ interface ProofBundle {
 interface SimResult {
   ok: boolean;
   minResourceFee?: string;
-  cpuInsns?: string;
   returnValue?: string;
   error?: string;
 }
 
 export default function SubmitClient() {
+  const wallet = useWallet();
   const [stage, setStage] = useState<Stage>("idle");
   const [bundle, setBundle] = useState<ProofBundle | null>(null);
   const [sim, setSim] = useState<SimResult | null>(null);
-  const [walletKey, setWalletKey] = useState<string | null>(null);
-  const [walletErr, setWalletErr] = useState<string | null>(null);
   const [submitTx, setSubmitTx] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Auto-detect Freighter on mount; do not auto-connect (privacy).
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const installed = await freighter.isConnected();
-        if (!alive) return;
-        if (!installed?.isConnected) {
-          setWalletErr("Freighter not installed");
-        }
-      } catch {
-        if (alive) setWalletErr("Freighter unavailable in this browser");
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
 
   async function loadExample() {
     setStage("loading-example");
@@ -80,32 +69,15 @@ export default function SubmitClient() {
     }
   }
 
-  async function connectWallet() {
-    setWalletErr(null);
-    try {
-      const access = await freighter.requestAccess();
-      if (access?.error) {
-        setWalletErr(access.error);
-        return;
-      }
-      const addr = await freighter.getAddress();
-      if (addr?.address) {
-        setWalletKey(addr.address);
-      } else {
-        setWalletErr("could not read address");
-      }
-    } catch (e) {
-      setWalletErr(String(e));
-    }
-  }
-
   async function runSimulate() {
     if (!bundle) return;
     setStage("simulating");
     setError(null);
     setSim(null);
     try {
-      const result = await simulateVerifyProof(bundle, walletKey ?? FALLBACK_SIMULATE_SOURCE);
+      // Lazy-load stellar-sdk only when the user actually wants to simulate.
+      const StellarSdk = await import("@stellar/stellar-sdk");
+      const result = await simulateVerifyProof(StellarSdk, bundle, wallet.address ?? FALLBACK_SIMULATE_SOURCE);
       setSim(result);
       setStage("simulated");
     } catch (e) {
@@ -115,12 +87,16 @@ export default function SubmitClient() {
   }
 
   async function runSubmit() {
-    if (!bundle || !walletKey) return;
+    if (!bundle || !wallet.address) return;
     setStage("signing");
     setError(null);
     setSubmitTx(null);
     try {
-      const hash = await submitVerifyProof(bundle, walletKey);
+      const [StellarSdk, freighter] = await Promise.all([
+        import("@stellar/stellar-sdk"),
+        import("@stellar/freighter-api"),
+      ]);
+      const hash = await submitVerifyProof(StellarSdk, freighter, bundle, wallet.address);
       setSubmitTx(hash);
       setStage("submitted");
     } catch (e) {
@@ -171,10 +147,10 @@ export default function SubmitClient() {
 
           <section className="space-y-3 pt-2 border-t border-line">
             <SectionLabel n="03" title="sign + submit (wallet)" />
-            <WalletConnect walletKey={walletKey} walletErr={walletErr} onConnect={connectWallet} />
+            <WalletConnect />
             <button
               onClick={runSubmit}
-              disabled={!bundle || !walletKey || stage === "signing" || stage === "submitting"}
+              disabled={!bundle || !wallet.address || stage === "signing" || stage === "submitting"}
               className="inline-flex items-center bg-signal text-ink px-4 py-2 text-[12px] uppercase tracking-[0.08em] hover:bg-signal/90 disabled:opacity-40 disabled:hover:bg-signal transition-colors"
             >
               {stage === "signing" ? "waiting for Freighter…" :
@@ -205,10 +181,9 @@ export default function SubmitClient() {
             <div className="space-y-3">
               <div className="text-[11px] uppercase tracking-[0.08em] text-mute">simulation</div>
               <Kv k="status" v={sim.ok ? <span className="text-signal">would succeed</span> : <span className="text-foil">would fail</span>} />
-              {sim.minResourceFee && <Kv k="min fee"     v={<span><span className="text-paper">{Number(sim.minResourceFee).toLocaleString()}</span> <span className="text-mute">stroops</span></span>} />}
-              {sim.cpuInsns       && <Kv k="cpu insns"   v={<span className="text-paper">{Number(sim.cpuInsns).toLocaleString()}</span>} />}
-              {sim.returnValue    && <Kv k="return"      v={<code className="text-paper text-[11px]">{sim.returnValue}</code>} />}
-              {sim.error          && <Kv k="error"       v={<span className="text-foil text-[11px]">{sim.error}</span>} />}
+              {sim.minResourceFee && <Kv k="min fee"  v={<span><span className="text-paper">{Number(sim.minResourceFee).toLocaleString()}</span> <span className="text-mute">stroops</span></span>} />}
+              {sim.returnValue    && <Kv k="return"   v={<code className="text-paper text-[11px]">{sim.returnValue}</code>} />}
+              {sim.error          && <Kv k="error"    v={<span className="text-foil text-[11px]">{sim.error}</span>} />}
             </div>
           )}
 
@@ -260,27 +235,36 @@ function Kv({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function WalletConnect({
-  walletKey,
-  walletErr,
-  onConnect,
-}: {
-  walletKey: string | null;
-  walletErr: string | null;
-  onConnect: () => void;
-}) {
-  if (walletKey) {
+function WalletConnect() {
+  const { address, error, installed, connect, disconnect } = useWallet();
+  if (address) {
     return (
-      <div className="text-[11px] text-mute space-y-1">
-        <div>connected · <a href={`${NETWORK.explorerBase}/account/${walletKey}`} target="_blank" rel="noopener" className="text-paper hover:text-signal break-all">{walletKey.slice(0, 6)}…{walletKey.slice(-6)}</a></div>
+      <div className="text-[11px] text-mute space-y-1.5">
+        <div>
+          connected ·{" "}
+          <a
+            href={`${NETWORK.explorerBase}/account/${address}`}
+            target="_blank"
+            rel="noopener"
+            className="text-paper hover:text-signal break-all"
+          >
+            {address.slice(0, 6)}…{address.slice(-6)}
+          </a>
+        </div>
+        <button
+          onClick={disconnect}
+          className="text-mute text-[10px] uppercase tracking-[0.08em] hover:text-foil transition-colors"
+        >
+          disconnect
+        </button>
       </div>
     );
   }
-  if (walletErr) {
+  if (!installed || error) {
     return (
       <div className="text-[11px] text-mute space-y-2">
-        <div>{walletErr}</div>
-        <a href="https://freighter.app/" target="_blank" rel="noopener" className="text-signal hover:text-paper text-[12px]">
+        {error && <div>{error}</div>}
+        <a href="https://freighter.app/" target="_blank" rel="noopener" className="inline-flex text-signal hover:text-paper text-[12px]">
           install Freighter ↗
         </a>
       </div>
@@ -288,7 +272,7 @@ function WalletConnect({
   }
   return (
     <button
-      onClick={onConnect}
+      onClick={connect}
       className="inline-flex items-center border border-line text-paper px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] hover:border-signal hover:text-signal transition-colors"
     >
       connect Freighter
@@ -310,50 +294,31 @@ function FooterNote() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Soroban tx construction
+// Soroban tx construction — stellar-sdk passed in as an arg so it can be
+// dynamically imported by the caller (keeps it out of the initial bundle).
 // ────────────────────────────────────────────────────────────────────────────
 
-// A throwaway address used only for simulation (Soroban allows simulating
-// with an unfunded source; we just need a valid strkey). We use the
-// oneproof verifier's own address as a stand-in if no wallet is connected.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StellarSdkMod = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FreighterMod = any;
+
 const FALLBACK_SIMULATE_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA72LO";
 
-function bytesToScVal(bytes: Uint8Array): StellarSdk.xdr.ScVal {
+function bytesToScVal(StellarSdk: StellarSdkMod, bytes: Uint8Array) {
   return StellarSdk.xdr.ScVal.scvBytes(Buffer.from(bytes));
 }
 
-async function buildVerifyTx(bundle: ProofBundle, sourcePubKey: string): Promise<StellarSdk.Transaction> {
+async function simulateVerifyProof(
+  StellarSdk: StellarSdkMod,
+  bundle: ProofBundle,
+  sourcePubKey: string,
+): Promise<SimResult> {
   const server = new StellarSdk.rpc.Server(NETWORK.sorobanRpc);
-  const account = await server.getAccount(sourcePubKey);
-  const contract = new StellarSdk.Contract(CONTRACTS.oneproofVerifier);
-
-  const tx = new StellarSdk.TransactionBuilder(account, {
-    fee: StellarSdk.BASE_FEE,
-    networkPassphrase: NETWORK.passphrase,
-  })
-    .addOperation(
-      contract.call(
-        "verify_proof",
-        bytesToScVal(bundle.publicInputs),
-        bytesToScVal(bundle.proofBytes),
-      ),
-    )
-    .setTimeout(60)
-    .build();
-
-  return tx;
-}
-
-async function simulateVerifyProof(bundle: ProofBundle, sourcePubKey: string): Promise<SimResult> {
-  const server = new StellarSdk.rpc.Server(NETWORK.sorobanRpc);
-  // For simulation we don't strictly need a real funded account, but the
-  // server still needs the sequence; using the user's account when available
-  // keeps sequence accurate; otherwise we use a stand-in.
-  let account: StellarSdk.Account;
+  let account;
   try {
     account = await server.getAccount(sourcePubKey);
   } catch {
-    // Account doesn't exist on testnet — use a synthetic one for simulation.
     account = new StellarSdk.Account(FALLBACK_SIMULATE_SOURCE, "0");
   }
   const contract = new StellarSdk.Contract(CONTRACTS.oneproofVerifier);
@@ -364,8 +329,8 @@ async function simulateVerifyProof(bundle: ProofBundle, sourcePubKey: string): P
     .addOperation(
       contract.call(
         "verify_proof",
-        bytesToScVal(bundle.publicInputs),
-        bytesToScVal(bundle.proofBytes),
+        bytesToScVal(StellarSdk, bundle.publicInputs),
+        bytesToScVal(StellarSdk, bundle.proofBytes),
       ),
     )
     .setTimeout(60)
@@ -375,22 +340,38 @@ async function simulateVerifyProof(bundle: ProofBundle, sourcePubKey: string): P
   if (StellarSdk.rpc.Api.isSimulationError(result)) {
     return { ok: false, error: result.error };
   }
-  const ret = (result as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse).result?.retval;
+  const ret = result.result?.retval;
   return {
     ok: true,
     minResourceFee: result.minResourceFee,
-    // CPU insns field shape changed in stellar-sdk 16; omit for now and rely
-    // on minResourceFee as the user-facing cost metric.
     returnValue: ret ? StellarSdk.scValToNative(ret) + "" : undefined,
   };
 }
 
-async function submitVerifyProof(bundle: ProofBundle, sourcePubKey: string): Promise<string> {
+async function submitVerifyProof(
+  StellarSdk: StellarSdkMod,
+  freighter: FreighterMod,
+  bundle: ProofBundle,
+  sourcePubKey: string,
+): Promise<string> {
   const server = new StellarSdk.rpc.Server(NETWORK.sorobanRpc);
-  const tx = await buildVerifyTx(bundle, sourcePubKey);
+  const account = await server.getAccount(sourcePubKey);
+  const contract = new StellarSdk.Contract(CONTRACTS.oneproofVerifier);
+  const tx = new StellarSdk.TransactionBuilder(account, {
+    fee: StellarSdk.BASE_FEE,
+    networkPassphrase: NETWORK.passphrase,
+  })
+    .addOperation(
+      contract.call(
+        "verify_proof",
+        bytesToScVal(StellarSdk, bundle.publicInputs),
+        bytesToScVal(StellarSdk, bundle.proofBytes),
+      ),
+    )
+    .setTimeout(60)
+    .build();
   const prepared = await server.prepareTransaction(tx);
 
-  // Sign via Freighter
   const signed = await freighter.signTransaction(prepared.toXDR(), {
     networkPassphrase: NETWORK.passphrase,
     address: sourcePubKey,
@@ -400,20 +381,16 @@ async function submitVerifyProof(bundle: ProofBundle, sourcePubKey: string): Pro
   }
 
   const signedTx = StellarSdk.TransactionBuilder.fromXDR(signed.signedTxXdr, NETWORK.passphrase);
-  const sendResult = await server.sendTransaction(signedTx as StellarSdk.Transaction);
+  const sendResult = await server.sendTransaction(signedTx);
   if (sendResult.status !== "PENDING") {
     throw new Error(`send failed: ${sendResult.status} ${sendResult.errorResult ?? ""}`);
   }
-
-  // Poll for inclusion
   const hash = sendResult.hash;
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 2_000));
     const status = await server.getTransaction(hash);
     if (status.status === "SUCCESS") return hash;
-    if (status.status === "FAILED") {
-      throw new Error(`tx ${hash} failed on-chain`);
-    }
+    if (status.status === "FAILED") throw new Error(`tx ${hash} failed on-chain`);
   }
   throw new Error(`tx ${hash} did not confirm within 60s; check stellar.expert manually`);
 }

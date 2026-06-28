@@ -1,48 +1,22 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import ConsoleNav from "./ConsoleNav";
+import { WalletProvider } from "./WalletContext";
+import ConsoleHeader from "./ConsoleHeader";
 
-// Shared shell for the /console product surface. Persistent header with
-// the OneProof wordmark, three tabs (active one signal-colored — see
-// ConsoleNav for the usePathname highlight), a live-network pill, and
-// a thin hairline divider.
+// Shared shell for the /console product surface. Wraps the whole console
+// in a single WalletProvider so wallet state persists across tab
+// navigation. The header is a client component so it can read the wallet
+// context for the connected-state pill.
 
 export default function ConsoleLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col">
-      <ConsoleHeader />
-      <div className="flex-1">{children}</div>
-      <ConsoleFooter />
-    </div>
-  );
-}
-
-function ConsoleHeader() {
-  return (
-    <header className="border-b border-line bg-ink/95 backdrop-blur supports-[backdrop-filter]:bg-ink/70 sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto px-5 md:px-8 py-3 flex items-center gap-6">
-        <Link
-          href="/"
-          className="font-mono text-sm text-paper hover:text-signal transition-colors shrink-0"
-        >
-          oneproof <span className="text-mute">·</span> console
-        </Link>
-        <ConsoleNav />
-        <div className="flex-1" />
-        <NetworkPill />
+    <WalletProvider>
+      <div className="min-h-screen flex flex-col">
+        <ConsoleHeader />
+        <div className="flex-1">{children}</div>
+        <ConsoleFooter />
       </div>
-    </header>
-  );
-}
-
-function NetworkPill() {
-  return (
-    <div className="hidden md:flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-mute">
-      <span className="inline-block w-1.5 h-1.5 rounded-full bg-signal animate-pulse" aria-hidden />
-      <span>testnet</span>
-      <span className="text-line">·</span>
-      <span>protocol 26</span>
-    </div>
+    </WalletProvider>
   );
 }
 
