@@ -1,4 +1,5 @@
 import HeroChart from "@/components/HeroChart";
+import SplineHero from "@/components/SplineHero";
 import { RESULTS, crossoverN_naiveVsRecursive } from "@/lib/bench";
 
 // design.md §2 wireframe + §3 copy direction.
@@ -33,6 +34,10 @@ export default function Page() {
         <p className="text-body text-mute max-w-xl">
           Aggregate N proofs into one the chain verifies once. Constant-cost ZK on Stellar.
         </p>
+        {/* 3D opener: many proofs collapse into one. See web/SPLINE_BRIEF.md.
+            Renders an on-brand SVG skeleton until the Spline scene URL is set
+            in components/SplineHero.tsx. */}
+        <SplineHero />
         <HeroChart />
         <div className="flex items-center gap-6 pt-1">
           <a
