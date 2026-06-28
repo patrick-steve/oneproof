@@ -1,5 +1,5 @@
 import HeroChart from "@/components/HeroChart";
-import SplineHero from "@/components/SplineHero";
+import HeroScene from "@/components/HeroScene";
 import { RESULTS, crossoverN_naiveVsRecursive } from "@/lib/bench";
 
 // design.md §2 wireframe + §3 copy direction.
@@ -34,10 +34,10 @@ export default function Page() {
         <p className="text-body text-mute max-w-xl">
           Aggregate N proofs into one the chain verifies once. Constant-cost ZK on Stellar.
         </p>
-        {/* 3D opener: many proofs collapse into one. See web/SPLINE_BRIEF.md.
-            Renders an on-brand SVG skeleton until the Spline scene URL is set
-            in components/SplineHero.tsx. */}
-        <SplineHero />
+        {/* 3D opener: 16 small hex prisms collapse into one. R3F scene in
+            components/HeroSceneCanvas.tsx; SSR-safe via dynamic import in
+            HeroScene.tsx with the SVG HeroSkeleton as the fallback shell. */}
+        <HeroScene />
         <HeroChart />
         <div className="flex items-center gap-6 pt-1">
           <a
