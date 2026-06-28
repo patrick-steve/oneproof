@@ -14,29 +14,29 @@
 }
 
 html, body {
-  background: #0D1320;
-  color: #ECEBE3;
+  background: #0A0A0C;
+  color: #F4F4EE;
   font-family: "Switzer", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* §1: measurement grid bleeding behind everything, like graph paper. */
+/* Measurement grid bleed-through, retuned for the v2 dark ground. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(to right,  rgba(36, 48, 71, 0.18) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(36, 48, 71, 0.18) 1px, transparent 1px);
-  background-size: 56px 56px;
+    linear-gradient(to right,  rgba(31, 31, 38, 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31, 31, 38, 0.55) 1px, transparent 1px);
+  background-size: 64px 64px;
   z-index: 0;
 }
 
-/* §6 accessibility: visible focus rings in --signal. */
+/* Accessibility: visible focus rings in the v2 signal color. */
 *:focus-visible {
-  outline: 2px solid #4AD8C0;
+  outline: 2px solid #5FB7FF;
   outline-offset: 2px;
   border-radius: 2px;
 }

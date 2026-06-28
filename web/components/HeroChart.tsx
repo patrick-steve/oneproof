@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { projectStroops, isMeasured, type Mode } from "@/lib/bench";
+import { COLORS } from "@/lib/colors";
 
 const N_MIN = 1;
 const N_MAX = 1024;
@@ -70,8 +71,8 @@ export default function HeroChart() {
           const y = lerp(PAD.top, H - PAD.bottom, 1 - t);
           return (
             <g key={t}>
-              <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#243047" strokeWidth="1" />
-              <text x={PAD.left - 8} y={y + 3} fill="#8A93A6" fontSize="10" fontFamily="JetBrains Mono" textAnchor="end">
+              <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke={COLORS.line} strokeWidth="1" />
+              <text x={PAD.left - 8} y={y + 3} fill={COLORS.mute} fontSize="10" fontFamily="JetBrains Mono" textAnchor="end">
                 {formatStroops(Math.round(yMax * t))}
               </text>
             </g>
@@ -81,37 +82,37 @@ export default function HeroChart() {
         {/* x-axis ticks */}
         {[1, 64, 256, 512, 1024].map((nn) => (
           <g key={nn}>
-            <line x1={xScale(nn)} y1={H - PAD.bottom} x2={xScale(nn)} y2={H - PAD.bottom + 4} stroke="#243047" strokeWidth="1" />
-            <text x={xScale(nn)} y={H - PAD.bottom + 16} fill="#8A93A6" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">
+            <line x1={xScale(nn)} y1={H - PAD.bottom} x2={xScale(nn)} y2={H - PAD.bottom + 4} stroke={COLORS.line} strokeWidth="1" />
+            <text x={xScale(nn)} y={H - PAD.bottom + 16} fill={COLORS.mute} fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">
               {nn}
             </text>
           </g>
         ))}
-        <text x={W / 2} y={H - 6} fill="#8A93A6" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle" letterSpacing="0.08em">
+        <text x={W / 2} y={H - 6} fill={COLORS.mute} fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle" letterSpacing="0.08em">
           N · NUMBER OF PRIVATE OPERATIONS
         </text>
 
         {/* Naive (foil) — climbing and exiting the frame */}
-        <polyline points={polylineFor("naive", xScale, yScale, sampleN)} fill="none" stroke="#FB7185" strokeWidth="2" strokeLinejoin="round" />
+        <polyline points={polylineFor("naive", xScale, yScale, sampleN)} fill="none" stroke={COLORS.foil} strokeWidth="2" strokeLinejoin="round" />
         {/* Batch (a quieter projected line — uses signal-dim) */}
-        <polyline points={polylineFor("batch", xScale, yScale, sampleN)} fill="none" stroke="#1C3A38" strokeWidth="2" strokeLinejoin="round" strokeDasharray="2 4" opacity="0.85" />
+        <polyline points={polylineFor("batch", xScale, yScale, sampleN)} fill="none" stroke={COLORS.signalDim} strokeWidth="2" strokeLinejoin="round" strokeDasharray="2 4" opacity="0.85" />
         {/* Recursive (signal) — the flat line, the hero */}
-        <polyline points={polylineFor("recursive", xScale, yScale, sampleN)} fill="none" stroke="#4AD8C0" strokeWidth="2.5" strokeLinejoin="round" />
+        <polyline points={polylineFor("recursive", xScale, yScale, sampleN)} fill="none" stroke={COLORS.signal} strokeWidth="2.5" strokeLinejoin="round" />
 
         {/* Measured-point markers at N=4 (the row we actually ran) */}
         {(["naive", "batch", "recursive"] as Mode[]).map((mode) => {
           if (!isMeasured(mode, 4)) return null;
-          const color = mode === "naive" ? "#FB7185" : mode === "recursive" ? "#4AD8C0" : "#8A93A6";
+          const color = mode === "naive" ? COLORS.foil : mode === "recursive" ? COLORS.signal : COLORS.mute;
           return (
-            <circle key={mode} cx={xScale(4)} cy={yScale(projectStroops(mode, 4))} r="3.5" fill={color} stroke="#0D1320" strokeWidth="1.5" />
+            <circle key={mode} cx={xScale(4)} cy={yScale(projectStroops(mode, 4))} r="3.5" fill={color} stroke={COLORS.ink} strokeWidth="1.5" />
           );
         })}
 
         {/* Scrub cursor: vertical line at current N + 3 dots */}
-        <line x1={xScale(n)} y1={PAD.top} x2={xScale(n)} y2={H - PAD.bottom} stroke="#ECEBE3" strokeWidth="0.5" opacity="0.4" />
-        <circle cx={xScale(n)} cy={yScale(sNaive)} r="4.5" fill="#FB7185" stroke="#0D1320" strokeWidth="1.5" />
-        <circle cx={xScale(n)} cy={yScale(sBatch)} r="3.5" fill="#1C3A38" stroke="#4AD8C0" strokeWidth="1.5" />
-        <circle cx={xScale(n)} cy={yScale(sRecursive)} r="4.5" fill="#4AD8C0" stroke="#0D1320" strokeWidth="1.5" />
+        <line x1={xScale(n)} y1={PAD.top} x2={xScale(n)} y2={H - PAD.bottom} stroke={COLORS.paper} strokeWidth="0.5" opacity="0.4" />
+        <circle cx={xScale(n)} cy={yScale(sNaive)} r="4.5" fill={COLORS.foil} stroke={COLORS.ink} strokeWidth="1.5" />
+        <circle cx={xScale(n)} cy={yScale(sBatch)} r="3.5" fill={COLORS.signalDim} stroke={COLORS.signal} strokeWidth="1.5" />
+        <circle cx={xScale(n)} cy={yScale(sRecursive)} r="4.5" fill={COLORS.signal} stroke={COLORS.ink} strokeWidth="1.5" />
       </svg>
 
       {/* Slider */}

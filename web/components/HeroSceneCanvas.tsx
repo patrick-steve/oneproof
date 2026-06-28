@@ -7,14 +7,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-// design.md §1 tokens
-const COLORS = {
-  signal: "#4AD8C0",
-  mute: "#8A93A6",
-  line: "#243047",
-  signalDim: "#1C3A38",
-  paper: "#ECEBE3",
-};
+import { COLORS } from "@/lib/colors";
 
 const LOOP_S = 6.0;
 const N_HEX = 16;

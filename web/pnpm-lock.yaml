@@ -20,6 +20,9 @@ importers:
       '@remotion/player':
         specifier: ^4.0.484
         version: 4.0.484(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@remotion/three':
+        specifier: ^4.0.484
+        version: 4.0.484(@react-three/fiber@9.6.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(remotion@4.0.484(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(three@0.185.0)
       '@stellar/freighter-api':
         specifier: ^6.0.1
         version: 6.0.1
@@ -381,6 +384,15 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
+
+  '@remotion/three@4.0.484':
+    resolution: {integrity: sha512-gktaXOzx5QM0kAg+6r4RyYZ10MmxMq7vvcrEU63sJsibA6ojCE1Mpbb4kYvIiLFI3CiIMOvOoILaF5CgAznKJg==}
+    peerDependencies:
+      '@react-three/fiber': '>=8.0.0'
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+      remotion: 4.0.484
+      three: '>=0.137.0'
 
   '@stellar/freighter-api@6.0.1':
     resolution: {integrity: sha512-eqwakEqSg+zoLuPpSbKyrX0pG8DQFzL/J5GtbfuMCmJI+h+oiC9pQ5C6QLc80xopZQKdGt8dUAFCmDMNdAG95w==}
@@ -1423,6 +1435,14 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
       remotion: 4.0.484(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+
+  '@remotion/three@4.0.484(@react-three/fiber@9.6.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(remotion@4.0.484(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(three@0.185.0)':
+    dependencies:
+      '@react-three/fiber': 9.6.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.0)
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+      remotion: 4.0.484(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      three: 0.185.0
 
   '@stellar/freighter-api@6.0.1':
     dependencies:

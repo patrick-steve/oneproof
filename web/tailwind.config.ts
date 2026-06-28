@@ -7,14 +7,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink:         "#0D1320", // ground - deep instrument indigo
-        "ink-2":     "#121A2B", // raised panels
-        line:        "#243047", // hairlines / grid
-        paper:       "#ECEBE3", // display type, warm near-white
-        mute:        "#8A93A6", // body text, cool slate
-        signal:      "#4AD8C0", // AGGREGATED line, "the good line"
-        foil:        "#FB7185", // NAIVE line, "the line that explodes"
-        "signal-dim": "#1C3A38",
+        // PALETTE V2 — black + white + blue + yellow.
+        // signal (blue)  = the calm constant. Flat recursive line.
+        // foil   (yellow) = the warning. Linear naive line that explodes.
+        // Per impeccable: tint neutrals slightly so they're not pure black/white.
+        ink:         "#0A0A0C", // background — near-black with neutral tint
+        "ink-2":     "#14141A", // raised panels
+        line:        "#1F1F26", // hairlines, grid, borders
+        paper:       "#F4F4EE", // headlines + display text — warm near-white
+        mute:        "#7C7C82", // body copy + labels — calm gray
+        signal:      "#5FB7FF", // calm blue — the flat recursive line
+        foil:        "#FFD24F", // warm yellow — the rising naive line
+        "signal-dim": "#15324E", // signal at low alpha for fills/glows
       },
       fontFamily: {
         // Display: Clash Display (Fontshare) — wide engineered caps
@@ -28,9 +32,9 @@ const config: Config = {
         // §1 type scale, bumped to editorial / viewport-relative for the
         // full-bleed layout. The brand calls for display type that "does
         // the work" — these are now genuinely large.
-        "display-hero":    ["clamp(3.5rem, 11vw, 11rem)", { lineHeight: "0.92", letterSpacing: "-0.025em" }],
-        "display-section": ["clamp(2rem, 5vw, 4rem)",     { lineHeight: "1.0",  letterSpacing: "-0.015em" }],
-        "display-stat":    ["clamp(2.5rem, 6vw, 5.5rem)", { lineHeight: "1.0",  letterSpacing: "-0.02em" }],
+        "display-hero":    ["clamp(3rem, 18vw, 16rem)",   { lineHeight: "0.88", letterSpacing: "-0.03em" }],
+        "display-section": ["clamp(2.5rem, 7vw, 6rem)",    { lineHeight: "0.95", letterSpacing: "-0.02em" }],
+        "display-stat":    ["clamp(2.5rem, 8vw, 7rem)",    { lineHeight: "0.95", letterSpacing: "-0.025em" }],
         "body":            ["1.125rem",                   { lineHeight: "1.65" }],
         "label":           ["0.8125rem",                  { letterSpacing: "0.08em" }],
       },
