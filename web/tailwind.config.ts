@@ -25,11 +25,21 @@ const config: Config = {
         mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       fontSize: {
-        // §1 type scale (desktop)
-        "display-hero":    ["4.5rem", { lineHeight: "4rem", letterSpacing: "-0.02em" }], // 72/64
-        "display-section": ["2.25rem", { lineHeight: "2.5rem" }], // 36
-        "body":            ["1.125rem", { lineHeight: "1.75rem" }], // 18/28
-        "label":           ["0.8125rem", { letterSpacing: "0.08em" }], // 13, +0.08em
+        // §1 type scale, bumped to editorial / viewport-relative for the
+        // full-bleed layout. The brand calls for display type that "does
+        // the work" — these are now genuinely large.
+        "display-hero":    ["clamp(3.5rem, 11vw, 11rem)", { lineHeight: "0.92", letterSpacing: "-0.025em" }],
+        "display-section": ["clamp(2rem, 5vw, 4rem)",     { lineHeight: "1.0",  letterSpacing: "-0.015em" }],
+        "display-stat":    ["clamp(2.5rem, 6vw, 5.5rem)", { lineHeight: "1.0",  letterSpacing: "-0.02em" }],
+        "body":            ["1.125rem",                   { lineHeight: "1.65" }],
+        "label":           ["0.8125rem",                  { letterSpacing: "0.08em" }],
+      },
+      maxWidth: {
+        // Per impeccable: body copy capped at 65–75ch. Used inside full-
+        // bleed sections to constrain paragraphs without forcing the
+        // visualizations into the same straitjacket.
+        "prose-tight": "62ch",
+        "prose":       "72ch",
       },
       borderRadius: {
         // §1: squared panels, 0-4px radius

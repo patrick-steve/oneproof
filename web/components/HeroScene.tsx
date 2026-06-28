@@ -19,6 +19,9 @@ const SceneCanvas = dynamic(() => import("./HeroSceneCanvas"), {
   loading: () => <HeroSkeleton reason="loading-scene" />,
 });
 
-export default function HeroScene() {
-  return <SceneCanvas />;
+// `fill` lets the scene expand to fill its parent's height (used by the
+// new full-bleed hero where the parent has min-h-[40vh]). Default keeps
+// the original 16:10 aspect ratio for backward compatibility.
+export default function HeroScene({ fill = true }: { fill?: boolean }) {
+  return <SceneCanvas fill={fill} />;
 }

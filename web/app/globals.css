@@ -1,11 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Fontshare faces + JetBrains Mono. Fontshare's CSS API returns @font-face
+/* @import MUST come before any other rule per CSS spec; @tailwind expands
+   to real rules so the imports have to live at the very top of the file.
+   Fontshare faces + JetBrains Mono — Fontshare's CSS API returns @font-face
    declarations for both Clash Display and Switzer in one request. */
 @import url("https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=switzer@400,500,600&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   color-scheme: dark;

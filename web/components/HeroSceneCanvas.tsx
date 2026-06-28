@@ -194,9 +194,12 @@ function ConvergedHex() {
   );
 }
 
-export default function HeroSceneCanvas() {
+export default function HeroSceneCanvas({ fill = false }: { fill?: boolean }) {
+  // fill=true: stretch to fill the parent's height (full-bleed hero use).
+  // fill=false: keep the original 16:10 aspect (existing call sites).
+  const sizing = fill ? "h-full min-h-[400px]" : "aspect-[16/10]";
   return (
-    <div className="relative w-full aspect-[16/10] border border-line overflow-hidden bg-ink-2">
+    <div className={`relative w-full ${sizing} border border-line overflow-hidden bg-ink-2`}>
       <Canvas
         camera={{ position: [0, 1.2, 7], fov: 35 }}
         gl={{ alpha: true, antialias: true }}
