@@ -1,16 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import ConsoleNav from "./ConsoleNav";
 
 // Shared shell for the /console product surface. Persistent header with
-// the OneProof wordmark, three tabs, a live-network pill, and a thin
-// hairline divider. Product register: density over flourish, mono everywhere,
-// no display-typeface marketing copy here.
-
-const TABS = [
-  { href: "/console/verify",    label: "verify",    desc: "watch verifications" },
-  { href: "/console/submit",    label: "submit",    desc: "send a proof" },
-  { href: "/console/aggregate", label: "aggregate", desc: "the K-to-1 path" },
-] as const;
+// the OneProof wordmark, three tabs (active one signal-colored — see
+// ConsoleNav for the usePathname highlight), a live-network pill, and
+// a thin hairline divider.
 
 export default function ConsoleLayout({ children }: { children: ReactNode }) {
   return (
@@ -32,18 +27,7 @@ function ConsoleHeader() {
         >
           oneproof <span className="text-mute">·</span> console
         </Link>
-        <nav className="flex items-center gap-px overflow-x-auto">
-          {TABS.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="group px-3 py-1.5 font-mono text-[12px] uppercase tracking-[0.08em] text-mute hover:text-paper transition-colors whitespace-nowrap"
-            >
-              <span className="opacity-50 group-hover:opacity-100 transition-opacity">/</span>
-              {t.label}
-            </Link>
-          ))}
-        </nav>
+        <ConsoleNav />
         <div className="flex-1" />
         <NetworkPill />
       </div>

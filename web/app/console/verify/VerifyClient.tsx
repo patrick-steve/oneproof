@@ -133,12 +133,15 @@ function FeedList({
           <li key={e.txHash}>
             <button
               onClick={() => onSelect(e)}
-              className={`w-full text-left p-4 font-mono transition-colors ${
-                isSel
-                  ? "bg-ink-2 border-l-2 border-l-signal"
-                  : "hover:bg-ink-2/60 border-l-2 border-l-transparent"
+              className={`w-full text-left p-4 font-mono transition-colors relative ${
+                isSel ? "bg-ink-2" : "hover:bg-ink-2/60"
               }`}
             >
+              {/* Leading signal dot marks the selected row — replaces a
+                  side-stripe border (impeccable absolute ban). */}
+              {isSel && (
+                <span aria-hidden className="absolute top-5 left-1 inline-block w-1.5 h-1.5 rounded-full bg-signal" />
+              )}
               <div className="flex items-baseline justify-between gap-3">
                 <ModePill label={e.contractLabel} fn={e.function} />
                 <span className="text-[11px] text-mute" suppressHydrationWarning>
