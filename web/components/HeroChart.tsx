@@ -115,9 +115,13 @@ export default function HeroChart() {
         <circle cx={xScale(n)} cy={yScale(sRecursive)} r="4.5" fill={COLORS.signal} stroke={COLORS.ink} strokeWidth="1.5" />
       </svg>
 
-      {/* Slider */}
-      <div className="mt-6 flex items-center gap-4">
-        <label htmlFor="n-slider" className="label text-mute shrink-0">N</label>
+      {/* Slider — with a visible "drag me" affordance so judges know it's
+          interactive in the first second. */}
+      <div className="mt-6">
+        <div className="flex items-baseline justify-between mb-2 font-mono text-[11px] uppercase tracking-[0.08em]">
+          <span className="text-signal">↔ drag to change N</span>
+          <span className="text-mute">N = <span className="text-paper">{n.toLocaleString()}</span></span>
+        </div>
         <input
           id="n-slider"
           type="range"
@@ -125,12 +129,12 @@ export default function HeroChart() {
           max={N_MAX}
           value={n}
           onChange={(e) => setN(parseInt(e.target.value, 10))}
+          aria-label="number of proofs N"
           aria-valuenow={n}
           aria-valuemin={N_MIN}
           aria-valuemax={N_MAX}
-          className="w-full accent-signal"
+          className="w-full accent-signal cursor-grab active:cursor-grabbing"
         />
-        <span className="font-mono text-paper text-base shrink-0 w-16 text-right">{n}</span>
       </div>
 
       {/* Readouts */}

@@ -32,9 +32,12 @@ const config: Config = {
         // §1 type scale, bumped to editorial / viewport-relative for the
         // full-bleed layout. The brand calls for display type that "does
         // the work" — these are now genuinely large.
-        "display-hero":    ["clamp(3rem, 18vw, 16rem)",   { lineHeight: "0.88", letterSpacing: "-0.03em" }],
-        "display-section": ["clamp(2.5rem, 7vw, 6rem)",    { lineHeight: "0.95", letterSpacing: "-0.02em" }],
-        "display-stat":    ["clamp(2.5rem, 8vw, 7rem)",    { lineHeight: "0.95", letterSpacing: "-0.025em" }],
+        // V3 — dialed back so a 1920px screen doesn't get 350px tall letters.
+        // 11vw at 1920px = ~211px (was 345px); reads as "huge headline"
+        // without breaking layout or feeling like a billboard.
+        "display-hero":    ["clamp(2.75rem, 11vw, 10rem)", { lineHeight: "0.9",  letterSpacing: "-0.025em" }],
+        "display-section": ["clamp(2rem, 5vw, 4.5rem)",    { lineHeight: "0.98", letterSpacing: "-0.018em" }],
+        "display-stat":    ["clamp(2rem, 5.5vw, 5rem)",    { lineHeight: "0.95", letterSpacing: "-0.02em" }],
         "body":            ["1.125rem",                   { lineHeight: "1.65" }],
         "label":           ["0.8125rem",                  { letterSpacing: "0.08em" }],
       },

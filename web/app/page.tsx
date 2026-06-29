@@ -1,21 +1,19 @@
 import type { ReactNode } from "react";
 import HeroChart from "@/components/HeroChart";
-import HeroScene from "@/components/HeroScene";
 import PipelinePlayer from "@/components/PipelinePlayer";
 import StellarLive from "@/components/StellarLive";
 import ZkExplainer from "@/components/ZkExplainer";
 import { RESULTS, crossoverN_naiveVsRecursive } from "@/lib/bench";
 
-// Landing v2 — full viewport width, no sidebar, no centered column. Every
-// section spans 100vw edge to edge. Visualizations actually touch the
-// edges of the monitor. Body copy is the only thing that gets constrained
-// (max-w-prose at ~72ch) — per impeccable's reading-length rule, you don't
-// want a 24-inch-wide paragraph.
+// Landing v3 — judge-eye polish. The cost chart is the actual thesis;
+// it now lives in the hero so a first-time visitor sees the curve above
+// the fold instead of having to scroll to section 02. The decorative
+// orbiting-hexes 3D scene is removed from the hero (it still lives in
+// the Remotion pipeline section below, where it earns its keep by
+// telling a sequenced story).
 //
-// Palette V2: black background, white text, blue (signal, the flat
-// recursive cost line) + yellow (foil, the linear naive cost line).
-// Brand identity preserved: two-line chart, mono numbers, hairline
-// borders, measurement-grid bleed-through.
+// Palette stays V2 (black + blue + yellow). Type scale dialed back so
+// a 1920px monitor doesn't get 350px-tall letters.
 
 const CONTRACTS = RESULTS.contracts;
 const NAIVE_AT_4 = RESULTS.runs.find((r) => r.mode === "naive" && r.n === 4)?.resourceFeeStroops ?? 0;
@@ -28,46 +26,66 @@ export default function Page() {
     <main className="w-full">
       <TopAnchor />
 
-      {/* ─── HERO ─ full-bleed, headline + 3D scene fill the viewport ── */}
-      <section id="hero" className="relative w-full min-h-screen flex flex-col">
-        <div className="px-5 md:px-12 pt-20 md:pt-24 pb-6 md:pb-10">
-          <Eyebrow>00 · oneproof · constant-cost zk on stellar</Eyebrow>
-          <h1 className="font-display font-semibold text-display-hero text-paper mt-6 md:mt-8">
-            <span className="text-signal">ONE</span> PROOF
-            <br />TO RULE THEM ALL.
-          </h1>
-        </div>
-        <div className="flex-1 w-full min-h-[55vh]">
-          <HeroScene />
-        </div>
-        <div className="px-5 md:px-12 py-6 md:py-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-          <p className="text-body text-paper/85 max-w-prose leading-relaxed">
-            Each private transfer makes a zero-knowledge proof. We collapse N
-            proofs into one the chain verifies once. Constant on-chain cost,
-            no matter how many private operations are inside.
-          </p>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 shrink-0">
-            <a
-              href={`https://stellar.expert/explorer/testnet/contract/${CONTRACTS.oneproof_verifier}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center font-mono text-sm bg-signal text-ink px-5 py-3 hover:bg-signal/90 transition-colors"
-            >
-              see the contract on-chain →
-            </a>
-            <a
-              href={`https://stellar.expert/explorer/testnet/tx/${RECURSIVE_TX}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-sm text-mute hover:text-paper"
-            >
-              view a verified proof ↗
-            </a>
+      {/* ─── HERO ─ value prop + chart side-by-side on desktop ─────────── */}
+      <section
+        id="hero"
+        className="relative w-full min-h-screen flex flex-col px-5 md:px-10 lg:px-14 pt-20 md:pt-24 pb-12"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-10 lg:gap-14 flex-1">
+          {/* LEFT — value prop */}
+          <div className="flex flex-col justify-center space-y-6 lg:space-y-8 max-w-[680px]">
+            <div className="font-mono text-[12px] md:text-[13px] uppercase tracking-[0.14em] text-mute">
+              ZK proof aggregation <span className="text-line mx-2">·</span> Stellar testnet <span className="text-line mx-2">·</span> <span className="text-signal">live</span>
+            </div>
+            <h1 className="font-display font-semibold text-display-hero text-paper">
+              <span className="text-signal">ONE</span> PROOF
+              <br />TO RULE THEM ALL.
+            </h1>
+            <p className="text-body text-paper/85 leading-relaxed max-w-prose">
+              We aggregate <Mono>N</Mono> zero-knowledge proofs into one outer
+              proof, and the chain verifies it in a <span className="text-signal">single
+              transaction at constant cost</span>. The chart on the right is
+              measured on Stellar testnet, today.
+            </p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
+              <a
+                href={`https://stellar.expert/explorer/testnet/contract/${CONTRACTS.oneproof_verifier}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center font-mono text-sm bg-signal text-ink px-5 py-3 hover:bg-signal/90 transition-colors"
+              >
+                see the contract on-chain →
+              </a>
+              <a
+                href={`https://stellar.expert/explorer/testnet/tx/${RECURSIVE_TX}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-sm text-mute hover:text-paper"
+              >
+                view a verified proof ↗
+              </a>
+            </div>
           </div>
+
+          {/* RIGHT — the chart, the actual demo */}
+          <div className="flex flex-col justify-center min-h-[60vh] lg:min-h-0">
+            <HeroChart />
+            <p className="text-mute text-xs md:text-sm mt-4 font-mono leading-relaxed">
+              <span className="text-foil">yellow</span> climbs linearly · every
+              proof is its own transaction.&nbsp;
+              <span className="text-signal">blue</span> stays flat · one
+              aggregated proof, one transaction, any N.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-10 md:mt-14 font-mono text-[11px] uppercase tracking-[0.08em] text-mute flex items-center gap-3">
+          <span aria-hidden>↓</span>
+          <span>scroll for the wall · the proof · the pipeline · the receipts</span>
         </div>
       </section>
 
-      {/* ─── 01 · THE WALL ─────────────────────────────────────── */}
+      {/* ─── 01 · THE WALL ─────────────────────────────────────────────── */}
       <Section id="wall" n="01" title="the wall">
         <Prose>
           Verifying N proofs costs roughly N verifications. That linear wall is
@@ -78,45 +96,30 @@ export default function Page() {
         </Prose>
       </Section>
 
-      {/* ─── 02 · THE COST CURVE ─ full-bleed chart ─────────────── */}
-      <Section id="curve" n="02" title="the cost curve" caption="drag the slider · the lines tell the story">
-        <Prose>
-          The yellow line climbs linearly. The blue line refuses to move.
-          Cross over with naive happens around <Mono>N ≈ {CROSSOVER}</Mono>,
-          then the gap opens fast.
-        </Prose>
-        <div className="mt-10 md:mt-14 w-full">
-          <HeroChart />
-        </div>
-        <p className="text-mute text-sm italic mt-6 max-w-prose-tight">
-          The chain does not care how many proofs are inside.
-        </p>
-      </Section>
-
-      {/* ─── 03 · WHAT THE ZK PROOF PROVES ─────────────────────── */}
-      <Section id="zk" n="03" title="what the proof proves">
+      {/* ─── 02 · WHAT THE PROOF PROVES ─ moved up; judges need this early ─── */}
+      <Section id="zk" n="02" title="what the proof proves">
         <ZkExplainer />
       </Section>
 
-      {/* ─── 04 · THE PIPELINE ─ full-bleed, scroll-scrubbed ─── */}
+      {/* ─── 03 · THE PIPELINE ─ full-bleed, R3F + scroll-scrubbed ─────── */}
       <section id="pipeline" className="w-full bg-ink-2 border-y border-line">
-        <div className="px-5 md:px-12 pt-20 md:pt-28 pb-10 space-y-6">
-          <Eyebrow>04 · pipeline</Eyebrow>
+        <div className="px-5 md:px-10 lg:px-14 pt-16 md:pt-20 pb-8 space-y-4">
+          <Eyebrow>03 · pipeline</Eyebrow>
           <h2 className="font-display font-semibold text-display-section text-paper">
             The collapse, scrubbed in scroll.
           </h2>
           <Prose>
             Five scenes, twelve seconds. Inner proofs generate in parallel,
             converge into an aggregator, emit a single outer proof, fly into
-            a Soroban contract. What you see ends in a real testnet
+            a Soroban contract. The receipt at the end is a real testnet
             transaction hash anyone can replay.
           </Prose>
         </div>
         <PipelinePlayer />
       </section>
 
-      {/* ─── 05 · THE NUMBERS ─ huge mono readouts ─────────────── */}
-      <Section id="numbers" n="05" title="the numbers" caption="measured · stellar testnet">
+      {/* ─── 04 · THE NUMBERS ─ huge mono readouts + live counter ───── */}
+      <Section id="numbers" n="04" title="the numbers" caption="measured · stellar testnet">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-line mt-2">
           <BigStat
             label="crossover N"
@@ -142,8 +145,8 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 06 · WHAT THIS IS / ISN'T ─────────────────────────── */}
-      <Section id="caveats" n="06" title="what this is, and isn't" caption="honesty over rhetoric">
+      {/* ─── 05 · WHAT THIS IS / ISN'T ─────────────────────────────── */}
+      <Section id="caveats" n="05" title="what this is, and isn't" caption="honesty over rhetoric">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-line">
           <CaveatColumn tone="signal" head="is">
             <li>Real Groth16 and UltraHonk proofs over a real privacy-transfer circuit.</li>
@@ -160,8 +163,8 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 07 · RUN IT ───────────────────────────────────────── */}
-      <Section id="run" n="07" title="run it" caption="one command · testnet · open source">
+      {/* ─── 06 · RUN IT ───────────────────────────────────────────── */}
+      <Section id="run" n="06" title="run it" caption="one command · testnet · open source">
         <pre className="font-mono text-xs md:text-sm text-paper border border-line p-5 md:p-8 bg-ink-2 overflow-x-auto leading-relaxed max-w-3xl">
 {`git clone <repo> && cd oneproof
 ./scripts/build.sh        # circuits + contracts
@@ -186,13 +189,10 @@ cd web && pnpm dev        # this page, locally`}
 
 // ─── shared layout primitives ─────────────────────────────────────────
 
-// Small fixed top-right anchor. Replaces the old sidebar with a minimal
-// always-visible pin showing the wordmark + console link. Stays out of
-// the way of the full-bleed sections.
 function TopAnchor() {
   return (
     <div className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-      <div className="flex items-center justify-between px-5 md:px-12 py-4 font-mono text-[11px] uppercase tracking-[0.08em]">
+      <div className="flex items-center justify-between px-5 md:px-10 lg:px-14 py-4 font-mono text-[11px] uppercase tracking-[0.08em]">
         <span className="text-paper pointer-events-auto">oneproof</span>
         <a
           href="/console/verify"
@@ -221,17 +221,17 @@ function Section({
   return (
     <section
       id={id}
-      className="w-full border-t border-line py-20 md:py-32"
+      className="w-full border-t border-line py-16 md:py-24"
     >
-      <header className="px-5 md:px-12 mb-10 md:mb-16 space-y-4 md:space-y-6">
+      <header className="px-5 md:px-10 lg:px-14 mb-8 md:mb-12 space-y-3 md:space-y-5">
         <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-mute">
-          {n} {caption && <span className="text-line mx-2">·</span>} {caption ?? null}
+          {n}{caption ? <> <span className="text-line mx-2">·</span> {caption}</> : null}
         </div>
         <h2 className="font-display font-semibold text-display-section text-paper">
           {title}
         </h2>
       </header>
-      <div className="px-5 md:px-12">{children}</div>
+      <div className="px-5 md:px-10 lg:px-14">{children}</div>
     </section>
   );
 }
@@ -269,7 +269,7 @@ function BigStat({
 }) {
   const color = tone === "signal" ? "text-signal" : "text-foil";
   return (
-    <div className="bg-ink p-6 md:p-10 space-y-4">
+    <div className="bg-ink p-6 md:p-8 space-y-3">
       <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-mute">{label}</div>
       <div className={`font-mono ${color} text-display-stat`}>{value}</div>
       <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-mute">{caption}</div>
@@ -288,7 +288,7 @@ function CaveatColumn({
 }) {
   const color = tone === "signal" ? "text-signal" : "text-foil";
   return (
-    <div className="bg-ink p-8 md:p-12 space-y-5">
+    <div className="bg-ink p-6 md:p-10 space-y-4">
       <div className={`font-mono text-[11px] uppercase tracking-[0.12em] ${color}`}>{head}</div>
       <ul className="space-y-3 text-paper/90 text-body leading-relaxed">
         {children}
@@ -299,8 +299,8 @@ function CaveatColumn({
 
 function Footer() {
   return (
-    <footer className="border-t border-line px-5 md:px-12 py-8 font-mono text-[11px] uppercase tracking-[0.08em] text-mute flex justify-between items-center">
-      <span>oneproof · stellar hacks: real-world zk · testnet</span>
+    <footer className="border-t border-line px-5 md:px-10 lg:px-14 py-6 font-mono text-[11px] uppercase tracking-[0.08em] text-mute flex justify-between items-center">
+      <span>oneproof · stellar hackathon · testnet</span>
       <span>v0.1 · {new Date().getFullYear()}</span>
     </footer>
   );
