@@ -68,25 +68,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Explicit user-initiated connect — DOES prompt. After approval we
-  // also read the address.
+  // also read the address. Verbose console logging so when something
+  // misbehaves (Freighter not installed despite isConnected=true,
+  // user rejects, network mismatch, etc.) we can see why in DevTools.
   async function connect() {
     setError(null);
+    console.info("[wallet] requesting Freighter access for", window.location.origin);
     try {
       const access = await freighter.requestAccess();
+      console.info("[wallet] requestAccess returned", access);
       if (access?.error) {
-        setError(access.error);
+        setError(`Freighter: ${access.error}`);
+        console.warn("[wallet] access error:", access.error);
         return;
       }
       // requestAccess returns the address in some versions; if not, fetch it.
-      const addr = access?.address ?? (await freighter.getAddress())?.address;
+      let addr = access?.address;
+      if (!addr) {
+        const r = await freighter.getAddress();
+        console.info("[wallet] getAddress returned", r);
+        addr = r?.address;
+      }
       if (addr) {
         setAddress(addr);
         setAllowed(true);
+        console.info("[wallet] connected as", addr);
       } else {
-        setError("could not read address after access grant");
+        setError("Freighter granted access but did not return an address. Open the extension and confirm you're on Test SDF Network.");
       }
     } catch (e) {
-      setError(String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      console.error("[wallet] connect threw:", e);
     }
   }
 
