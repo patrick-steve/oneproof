@@ -24,8 +24,9 @@ primary_region = "iad"
 
 # Resources: bb's aggregator proof peaked at 3.84 GB on a 4 GB VM and got
 # OOM-killed (confirmed in fly logs: "Out of memory: Killed process 679
-# (bb) total-vm:4469552kB"). 8 GB has the headroom. Disk holds the
-# toolchain + circuits (~250 MB).
+# (bb) total-vm:4469552kB"). 8 GB has the headroom. shared-cpu-2x caps
+# at 4 GB, so bumping to shared-cpu-4x (4 vCPU, 8 GB max). Disk holds
+# the toolchain + circuits (~250 MB).
 [[vm]]
-  size = "shared-cpu-2x"
+  size = "shared-cpu-4x"
   memory = "8gb"
