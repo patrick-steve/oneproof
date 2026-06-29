@@ -48,10 +48,11 @@ export default function Page() {
               <br />TO RULE THEM ALL.
             </h1>
             <p className="text-body text-paper/85 leading-relaxed max-w-prose">
-              We aggregate <Mono>N</Mono> zero-knowledge proofs into one outer
-              proof, and the chain verifies it in a <span className="text-signal">single
-              transaction at constant cost</span>. The chart on the right is
-              measured on Stellar testnet, today.
+              We bundle many zero-knowledge proofs into a single proof, and
+              Stellar verifies that one proof in a <span className="text-signal">single
+              transaction at a fixed cost</span>, no matter how many private
+              operations are inside. The chart on the right is measured on
+              Stellar testnet, today.
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
               <a
@@ -132,7 +133,7 @@ export default function Page() {
         id="zk"
         n="02"
         title="what the proof proves"
-        lead="Each private transfer runs the same circuit and emits one proof of three facts. Those are the facts the aggregator collapses together."
+        lead="Before we can fold many proofs into one, each individual proof has to prove something. A short tour of what each transfer's proof guarantees to the chain — without revealing any of the user's private data."
       >
         <ZkExplainer />
       </Section>
@@ -144,13 +145,14 @@ export default function Page() {
             03 <span className="text-line mx-2">·</span> pipeline <span className="text-line mx-2">·</span> twelve seconds, scroll to scrub
           </div>
           <h2 className="font-display font-semibold text-display-section text-paper">
-            The collapse, sequenced.
+            How four proofs become one.
           </h2>
           <p className="text-body text-mute leading-relaxed max-w-prose">
-            Four inner proofs generate in parallel. They converge into an
-            aggregator. The aggregator emits a single outer proof. It flies
-            into a Soroban contract. The receipt at the end is a real
-            testnet transaction hash anyone can replay.
+            Four user proofs are generated in parallel. They flow into an
+            aggregator that proves all four are valid and produces a single
+            new proof. That one proof is then sent to a Stellar smart contract,
+            which verifies it in a single transaction. The hash at the end is
+            a real testnet receipt anyone can look up.
           </p>
         </div>
         <PipelinePlayer />
@@ -161,48 +163,48 @@ export default function Page() {
         id="unlocks"
         n="04"
         title="what this unlocks"
-        lead="Constant on-chain cost turns ZK from 'too expensive for production traffic' into a primitive you can ship. Six applications that become viable the moment N stops mattering."
+        lead="Fixed on-chain cost changes what's actually buildable. Things that were too expensive to ship on a per-user basis become viable the moment the on-chain bill stops growing with the user count. Six concrete examples."
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-10 lg:gap-y-14 mt-2">
           <Unlock
             n="i"
             title="private payments at scale"
-            body="Tornado-class privacy pool, Stellar-native. Hundreds of withdrawals collapse into one aggregated verification per epoch. Today's mixers settle one withdrawal per tx; this settles 1024."
+            body="Today's privacy pools (think Tornado Cash on Ethereum) settle one withdrawal per transaction. With aggregation, a thousand private withdrawals can be bundled and settled in one. Lower fees per user, much larger anonymity sets."
             metric={`≈ ${RECURSIVE_AT_4.toLocaleString()} stroops`}
             metricSub="for a 1024-user batch · vs ~31M naive"
           />
           <Unlock
             n="ii"
-            title="rollup-style L2 on Stellar"
-            body="Accumulate hundreds of off-chain state transitions, prove the batch off-chain, settle in one Soroban tx. Stellar gets an L2 pattern without changing the protocol. Each user pays a fraction of one verification fee."
-            metric="N · 1 verify"
-            metricSub="amortized · regardless of batch size"
+            title="layer-2 patterns on Stellar"
+            body="Collect hundreds of off-chain state changes, prove the whole batch was valid off-chain, settle the result in one Stellar transaction. Stellar gets an 'L2' pattern (the same trick Ethereum rollups use) without any change to the underlying protocol."
+            metric="N updates · 1 verify"
+            metricSub="cost amortized across the batch"
           />
           <Unlock
             n="iii"
             title="anonymous voting + governance"
-            body="Aggregate thousands of ballots into one verification. Each voter's commitment is private; the aggregate proof attests they all checked out. Censorship-resistant, auditable, single-tx settlement."
+            body="Thousands of ballots, all private, all verified in one on-chain step. Each voter proves their ballot is valid without revealing how they voted. The aggregator combines everyone's proofs; the chain just checks the one result. Auditable, censorship-resistant, single-tx settlement."
             metric="1 tx · N voters"
-            metricSub="proof of valid tally without revealing votes"
+            metricSub="proof of valid tally · votes stay private"
           />
           <Unlock
             n="iv"
-            title="DEX with batch matching"
-            body="N matched trades verified in one aggregated proof per block. Eliminates per-trade verification cost, frustrates per-trade MEV. Settlement is one tx; price discovery happens off-chain inside the aggregator."
-            metric="O(1) on-chain"
-            metricSub="for any number of matched orders"
+            title="batch-matched DEX"
+            body="Instead of matching trades one at a time on-chain (which is slow, expensive, and easy to front-run), match a batch of orders off-chain and settle the whole batch in one verified transaction. Cheaper per trade and harder for bots to manipulate."
+            metric="1 tx · any N orders"
+            metricSub="batch-priced, front-running resistant"
           />
           <Unlock
             n="v"
-            title="cross-app proof composition"
-            body="The aggregator doesn't care which inner circuit produced its inputs. Stack proofs from different apps — a private payment + a DEX trade + a governance vote — into one outer proof. One settlement, many privacy domains."
-            metric="K circuits"
-            metricSub="composed into one verification"
+            title="combining proofs across apps"
+            body="The aggregator doesn't care which app generated each input proof. A private payment proof, a DEX trade proof, and a governance vote proof can all be bundled and settled together. One transaction, multiple unrelated privacy operations."
+            metric="K apps · 1 verify"
+            metricSub="cross-application composition"
           />
           <Unlock
             n="vi"
             title="any app paying the verification tax"
-            body="If your bottleneck is 'I verify too many proofs per second to be cheap,' aggregation is the lever. The constant in the curve is set by the outer circuit's size — fixed, regardless of how many inner proofs it eats."
+            body="If your bottleneck is 'I have to verify too many proofs on-chain for this to be affordable,' aggregation is the fix. The on-chain cost stops scaling with how many proofs are inside the batch — it's a fixed cost set by the size of the aggregator's own proof."
             metric="flat in N"
             metricSub="that's the whole product"
           />
@@ -251,20 +253,20 @@ export default function Page() {
         id="caveats"
         n="06"
         title="what this is, and isn't"
-        lead="Honesty over rhetoric. Naming the limits is what separates a demonstration from a sales deck."
+        lead="Plain about what we built and what we didn't. The point of a demo is to show what works, not to overpromise."
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-line">
-          <CaveatColumn tone="signal" head="is">
-            <li>Real Groth16 and UltraHonk proofs over a real privacy-transfer circuit.</li>
-            <li>Real testnet measurements, with transaction hashes anyone can replay.</li>
-            <li>Recursive aggregation that holds on-chain cost constant in N.</li>
-            <li>Audited cryptography (Barretenberg, snarkjs). Honest setup ceremonies.</li>
+          <CaveatColumn tone="signal" head="what it is">
+            <li>Real zero-knowledge proofs (UltraHonk + Groth16) over a working privacy-transfer circuit.</li>
+            <li>Real on-chain measurements on Stellar testnet, every transaction hash linkable to stellar.expert.</li>
+            <li>Recursive aggregation: many proofs collapsed into one, and the on-chain cost stays flat as you scale up.</li>
+            <li>Built on audited cryptography libraries (Aztec&apos;s Barretenberg, snarkjs). Standard, no homebrew crypto.</li>
           </CaveatColumn>
-          <CaveatColumn tone="foil" head="isn't">
-            <li>A production anonymity set. This is a demo-sized cohort.</li>
-            <li>A new cryptosystem. We compose audited components.</li>
-            <li>Mainnet. Testnet only.</li>
-            <li>&quot;Free.&quot; Off-chain proving still grows with N. The chain&apos;s cost is what flattens.</li>
+          <CaveatColumn tone="foil" head="what it isn't">
+            <li>A production-ready privacy app. The demo cohort is small; a real anonymity set needs thousands of users.</li>
+            <li>A new cryptographic scheme. We combine well-known, peer-reviewed components.</li>
+            <li>On Stellar mainnet yet. Testnet only.</li>
+            <li>&quot;Free.&quot; Generating proofs off-chain still costs CPU time. What we flatten is the <em className="not-italic text-paper">on-chain</em> fee, not the total work.</li>
           </CaveatColumn>
         </div>
       </Section>
@@ -274,7 +276,7 @@ export default function Page() {
         id="run"
         n="07"
         title="run it"
-        lead="One command per step, testnet end to end. The contract IDs are pinned; you'll get the exact same on-chain artifacts we did."
+        lead="Five commands, testnet end to end. Run the same proofs we ran, deploy the same contracts, see the same numbers."
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl">
           <pre className="font-mono text-xs md:text-sm text-paper border border-line p-5 md:p-8 bg-ink-2 overflow-x-auto leading-relaxed">
@@ -285,11 +287,11 @@ export default function Page() {
 cd web && pnpm dev`}
           </pre>
           <ul className="space-y-3 text-sm font-mono">
-            <RunStep label="git clone …"      sub="grab the repo · two submodules (forks) come with it" />
-            <RunStep label="build.sh"         sub="compiles circuits (Noir + Circom) and contracts (Soroban wasm)" />
-            <RunStep label="deploy.sh"        sub="deploys both verifier contracts to Stellar testnet, prints IDs" />
-            <RunStep label="bench.sh"         sub="runs the M ∈ {1,2,4} sweep, writes bench/results.json" />
-            <RunStep label="pnpm dev"         sub="serves this page locally on http://localhost:3000" />
+            <RunStep label="git clone …"      sub="download the source · pulls in two pinned helper libraries with it" />
+            <RunStep label="build.sh"         sub="compile the zero-knowledge programs and the on-chain contracts" />
+            <RunStep label="deploy.sh"        sub="deploy both verifier contracts to Stellar testnet · prints the new contract IDs" />
+            <RunStep label="bench.sh"         sub="run the measurement sweep (4 proofs, batched + recursive) · writes the numbers shown above" />
+            <RunStep label="pnpm dev"         sub="serve this exact page locally at http://localhost:3000" />
           </ul>
         </div>
         <div className="mt-10 flex flex-wrap items-center gap-6 font-mono text-sm">
