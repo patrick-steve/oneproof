@@ -61,17 +61,32 @@ export interface InnerInputs {
 export async function proveInner(input: InnerInputs): Promise<InnerProofResult> {
   const work = await mkdtemp(join(tmpdir(), "op-inner-"));
   try {
-    // 1. Derive deterministic private inputs from the user's nickname
-    //    so two clicks with the same nickname produce the same proof
-    //    (idempotent + cacheable). The merkle tree is the canonical
-    //    empty-leaf-at-index-0 tree the inner_transfer circuit's
-    //    `print_inputs_for_demo` test was built around.
-    const secret    = deriveSecretFromNickname(input.nickname);
-    const blinding  = "42";   // any nonzero field; pinned for reproducibility
-    const amount    = input.amount;
+    // KNOWN LIMITATION (banner on /console says so honestly):
+    //
+    // We use the demo's FIXED (secret, amount, blinding) on every call,
+    // ignoring the user's input. Reason: a true "user inputs flow into
+    // proof" path requires computing a fresh merkle root + nullifier for
+    // the user's commitment. That needs pedersen_hash in JS (which we
+    // don't have) or a helper Noir circuit (which we haven't written
+    // yet). Without it, the inner_transfer circuit's `assert(root ==
+    // current)` and `assert(nullifier == computed_nf)` fail because the
+    // user's inputs produce a commitment NOT at index 0 of the canonical
+    // empty tree.
+    //
+    // User's amount + nickname ARE captured in the response so the UI
+    // can echo them back; they just don't bind into the proof yet.
+    // The proof itself IS freshly generated on every call (~5-15s of
+    // real bb work), so the demo of 'proof being generated for you'
+    // is honest in shape, not in content.
+    const secret   = "7";
+    const blinding = "42";
+    const amount   = "1000";
+    void deriveSecretFromNickname; // kept for the next iteration
+    void input;                    // captured by /api/prove-inner for display
 
-    // 2. Build the merkle siblings (empty-tree Z[i] convention).
-    const merkle = canonicalEmptyTreeForLeafZero(secret, amount, blinding);
+    // Merkle siblings for empty-tree at leaf 0 (matches the inner_transfer
+    // circuit's `print_inputs_for_demo` test).
+    const merkle = canonicalEmptyTreeForLeafZero();
 
     // 3. Write Prover.toml into the inner_transfer circuit dir. nargo
     //    looks for it relative to the package; we point at our copy of
@@ -197,54 +212,28 @@ export async function proveAggregate(inners: InnerProofResult[]): Promise<OuterP
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
+// BN254 scalar field modulus r (the Fr the inner_transfer circuit lives in).
+const BN254_R = BigInt(
+  "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+);
+
 function deriveSecretFromNickname(nick: string): string {
-  // Lightweight deterministic mapping to a BN254 field element. We use
-  // SHA-256 of the nickname interpreted as a big-endian integer, then
-  // reduced mod the BN254 field. Since BN254 prime is ~2^254, taking the
-  // sha256 (256 bits) and dropping the top 2 bits suffices to land in-field.
+  // Deterministic SHA-256 of the nickname → big-endian integer → mod r.
+  // Top-2-bit masking ISN'T enough on its own because r < 2^254 (~2.18e76)
+  // while a 254-bit value can be up to ~2.89e76. Reduce explicitly.
   const enc = new TextEncoder().encode(nick || "anon");
   const digest = createHash("sha256").update(enc).digest();
-  // Mask the top 2 bits to guarantee < p (BN254 r).
-  digest[0] &= 0x3f;
-  // BigInt from bytes → decimal string for the Prover.toml field.
   let n = 0n;
   for (const b of digest) n = (n << 8n) | BigInt(b);
-  return n.toString();
+  return (n % BN254_R).toString();
 }
 
 interface MerkleResult { root: string; nullifier: string; pathElements: string[] }
 
-/** Canonical "user is leaf 0" merkle tree using the empty-tree siblings
- * Z[i] convention from the circuit's print_inputs_for_demo test. */
-function canonicalEmptyTreeForLeafZero(
-  _secret: string, _amount: string, _blinding: string,
-): MerkleResult {
-  // The empty-tree siblings Z[0..15] are CONSTANTS independent of the
-  // leaf, so we pre-compute them once and reuse. The root and nullifier,
-  // however, depend on the leaf — and we can't compute pedersen_hash in
-  // pure JS without a noir-js wasm. Two options:
-  //   (a) call `nargo execute` on the demo test fn — but that only works
-  //       for the pinned demo inputs (secret=7, amount=1000, blinding=42).
-  //   (b) run the inner circuit once with the user's inputs and read
-  //       root + nullifier back from the witness.
-  //
-  // For an honest MVP we use option (b) elsewhere — but that's circular
-  // (need to prove to get root, but need root to prove). Real fix: ship
-  // a tiny Noir helper circuit `compute_demo_inputs` that takes the
-  // user's (secret, amount, blinding) and prints root+nf via nargo
-  // execute, so we don't have to re-implement pedersen_hash in JS.
-  //
-  // For THIS commit we hard-code the empty-tree path elements (same as
-  // Prover.toml) and ALSO hard-code root + nullifier to the demo values.
-  // This means every user-generated inner proof uses the demo's secret/
-  // amount/blinding internally — the user's amount/nickname inputs are
-  // CAPTURED but don't yet flow into the proof. That's the next chunk of
-  // work; landing it now would balloon this commit.
-  //
-  // The honest banner copy on the frontend will say:
-  //   "Currently demonstrating with a fixed proof. End-user inputs
-  //    flow into proofs in a follow-up. The on-chain verification is
-  //    fully real."
+// Returns the canonical (root, nullifier, pathElements) tuple for the
+// demo's pinned (secret=7, amount=1000, blinding=42) at leaf index 0.
+// See proveInner() for why all 3 are hardcoded for now.
+function canonicalEmptyTreeForLeafZero(): MerkleResult {
   return {
     root:      "0x1cdce02cd33c149e222ca0af49ddd0dd793c48eed079bc47c228f9a85b322cbf",
     nullifier: "0x1e95b928248aa2a64eeb6e05d80a5742a6d73691cb2666c19d3bcc8dc0a429d3",
