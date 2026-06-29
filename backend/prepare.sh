@@ -12,9 +12,11 @@ cd "$(dirname "$0")"
 echo "▸ staging circuits from ../circuits/ …"
 rm -rf circuits
 mkdir -p circuits
-# We only need inner_transfer/ and aggregator/ — the other circuits aren't
-# touched by the prover backend. Skipping them keeps the image smaller.
-for c in inner_transfer aggregator; do
+# Three circuits the prover backend uses:
+#   - derive_inputs   — helper to compute root/nullifier/path from user inputs
+#   - inner_transfer  — the per-transfer proof
+#   - aggregator      — K=4 recursive aggregator over inner proofs
+for c in derive_inputs inner_transfer aggregator; do
   if [ ! -d "../circuits/$c" ]; then
     echo "  ✗ ../circuits/$c not found — did you run build.sh first?"
     exit 1

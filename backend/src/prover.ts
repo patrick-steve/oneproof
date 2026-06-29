@@ -21,6 +21,7 @@ const exec = promisify(execFile);
 const CIRCUITS_DIR = process.env.CIRCUITS_DIR ?? "/app/circuits";
 const INNER_PKG    = "inner_transfer";
 const AGG_PKG      = "aggregator";
+const DERIVE_PKG   = "derive_inputs";
 
 // Cached so we don't re-read on every request.
 let innerVkFieldsCache: string[] | null = null;
@@ -61,32 +62,25 @@ export interface InnerInputs {
 export async function proveInner(input: InnerInputs): Promise<InnerProofResult> {
   const work = await mkdtemp(join(tmpdir(), "op-inner-"));
   try {
-    // KNOWN LIMITATION (banner on /console says so honestly):
-    //
-    // We use the demo's FIXED (secret, amount, blinding) on every call,
-    // ignoring the user's input. Reason: a true "user inputs flow into
-    // proof" path requires computing a fresh merkle root + nullifier for
-    // the user's commitment. That needs pedersen_hash in JS (which we
-    // don't have) or a helper Noir circuit (which we haven't written
-    // yet). Without it, the inner_transfer circuit's `assert(root ==
-    // current)` and `assert(nullifier == computed_nf)` fail because the
-    // user's inputs produce a commitment NOT at index 0 of the canonical
-    // empty tree.
-    //
-    // User's amount + nickname ARE captured in the response so the UI
-    // can echo them back; they just don't bind into the proof yet.
-    // The proof itself IS freshly generated on every call (~5-15s of
-    // real bb work), so the demo of 'proof being generated for you'
-    // is honest in shape, not in content.
-    const secret   = "7";
-    const blinding = "42";
-    const amount   = "1000";
-    void deriveSecretFromNickname; // kept for the next iteration
-    void input;                    // captured by /api/prove-inner for display
+    // 1. Derive the user's private inputs deterministically from their
+    //    nickname + amount. Same nickname → same secret → reproducible
+    //    proof. Different nicknames → different commitments → distinct
+    //    proofs flowing into the aggregator.
+    const secret   = deriveSecretFromNickname(input.nickname);
+    const blinding = deriveBlindingFromNickname(input.nickname);
+    const amount   = input.amount;
 
-    // Merkle siblings for empty-tree at leaf 0 (matches the inner_transfer
-    // circuit's `print_inputs_for_demo` test).
-    const merkle = canonicalEmptyTreeForLeafZero();
+    // 2. Compute the public outputs the inner_transfer circuit will need
+    //    (commitment, merkle root, nullifier, path siblings) by running
+    //    the derive_inputs helper circuit. It does the same pedersen
+    //    hashing inner_transfer does internally; we just need the values
+    //    AHEAD of time to write a valid Prover.toml.
+    const derived = await deriveInputsViaCircuit(secret, amount, blinding);
+    const merkle = {
+      root:         derived.root,
+      nullifier:    derived.nullifier,
+      pathElements: derived.pathElements,
+    };
 
     // 3. Write Prover.toml into the inner_transfer circuit dir. nargo
     //    looks for it relative to the package; we point at our copy of
@@ -219,48 +213,100 @@ const BN254_R = BigInt(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
 
+// Special-case for the demo default. When nickname is "anon" we map to
+// the canonical (secret=7, blinding=42) used to bake the cached outer
+// proof shipped with the container. This keeps "click the demo with
+// default inputs" → instant cache hit. Any non-default nickname
+// derives fresh values and live-proves.
+const DEMO_NICK   = "anon";
+const DEMO_SECRET = "7";
+const DEMO_BLINDING = "42";
+
 function deriveSecretFromNickname(nick: string): string {
+  const n = nick || DEMO_NICK;
+  if (n === DEMO_NICK) return DEMO_SECRET;
   // Deterministic SHA-256 of the nickname → big-endian integer → mod r.
-  // Top-2-bit masking ISN'T enough on its own because r < 2^254 (~2.18e76)
-  // while a 254-bit value can be up to ~2.89e76. Reduce explicitly.
-  const enc = new TextEncoder().encode(nick || "anon");
+  // BN254 r < 2^254 so a 256-bit digest can exceed r; reduce explicitly.
+  const enc = new TextEncoder().encode(n);
   const digest = createHash("sha256").update(enc).digest();
-  let n = 0n;
-  for (const b of digest) n = (n << 8n) | BigInt(b);
-  return (n % BN254_R).toString();
+  let x = 0n;
+  for (const b of digest) x = (x << 8n) | BigInt(b);
+  return (x % BN254_R).toString();
 }
 
-interface MerkleResult { root: string; nullifier: string; pathElements: string[] }
+function deriveBlindingFromNickname(nick: string): string {
+  const n = nick || DEMO_NICK;
+  if (n === DEMO_NICK) return DEMO_BLINDING;
+  // Distinct domain separation so blinding and secret can't collide
+  // even if someone reuses a nickname.
+  const enc = new TextEncoder().encode("blinding|" + n);
+  const digest = createHash("sha256").update(enc).digest();
+  let x = 0n;
+  for (const b of digest) x = (x << 8n) | BigInt(b);
+  return (x % BN254_R).toString();
+}
 
-// Returns the canonical (root, nullifier, pathElements) tuple for the
-// demo's pinned (secret=7, amount=1000, blinding=42) at leaf index 0.
-// See proveInner() for why all 3 are hardcoded for now.
-function canonicalEmptyTreeForLeafZero(): MerkleResult {
-  return {
-    root:      "0x1cdce02cd33c149e222ca0af49ddd0dd793c48eed079bc47c228f9a85b322cbf",
-    nullifier: "0x1e95b928248aa2a64eeb6e05d80a5742a6d73691cb2666c19d3bcc8dc0a429d3",
-    pathElements: EMPTY_TREE_PATH_ELEMENTS,
+interface DerivedInputs {
+  commitment:   string;
+  root:         string;
+  nullifier:    string;
+  pathElements: string[];
+}
+
+// Run the derive_inputs helper circuit. Takes ~1-2s. We parse stdout
+// between the OP_DERIVED_START/END markers we emit from println.
+async function deriveInputsViaCircuit(
+  secret: string, amount: string, blinding: string,
+): Promise<DerivedInputs> {
+  const work = await mkdtemp(join(tmpdir(), "op-derive-"));
+  try {
+    const toml = `secret   = "${secret}"\namount   = "${amount}"\nblinding = "${blinding}"\n`;
+    const tomlPath = join(work, "Prover.toml");
+    await writeFile(tomlPath, toml, "utf8");
+    const pkgDir = join(CIRCUITS_DIR, DERIVE_PKG);
+    const { stdout } = await exec("nargo", [
+      "execute",
+      "--package", DERIVE_PKG,
+      "--prover-name", tomlPath,
+      DERIVE_PKG,
+    ], { cwd: pkgDir, maxBuffer: 16 * 1024 * 1024, timeout: 60_000 });
+    return parseDerivedStdout(stdout);
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
+
+function parseDerivedStdout(stdout: string): DerivedInputs {
+  const lines = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
+  const startIdx = lines.findIndex((l) => l === "OP_DERIVED_START");
+  const endIdx   = lines.findIndex((l) => l === "OP_DERIVED_END");
+  if (startIdx < 0 || endIdx < 0 || endIdx <= startIdx) {
+    throw new Error("derive_inputs stdout missing OP_DERIVED markers");
+  }
+  const inner = lines.slice(startIdx + 1, endIdx);
+  let i = 0;
+  const expectLabel = (want: string) => {
+    if (inner[i] !== want) throw new Error(`derive_inputs: expected '${want}' at line ${i}, got '${inner[i]}'`);
+    i++;
   };
+  const readField = () => {
+    const v = inner[i++];
+    if (!v) throw new Error(`derive_inputs: missing field at line ${i - 1}`);
+    return v;
+  };
+  expectLabel("commitment"); const commitment = readField();
+  expectLabel("root");       const root       = readField();
+  expectLabel("nullifier");  const nullifier  = readField();
+  expectLabel("path_elements_start");
+  const pathElements: string[] = [];
+  for (let j = 0; j < 16; j++) pathElements.push(readField());
+  return { commitment, root, nullifier, pathElements };
 }
 
-const EMPTY_TREE_PATH_ELEMENTS: string[] = [
-  "0x00",
-  "0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed",
-  "0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550",
-  "0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb",
-  "0x06e62084ee7b602fe9abc15632dda3269f56fb0c6e12519a2eb2ec897091919d",
-  "0x03c9e2e67178ac638746f068907e6677b4cc7a9592ef234ab6ab518f17efffa0",
-  "0x15d28cad4c0736decea8997cb324cf0a0e0602f4d74472cd977bce2c8dd9923f",
-  "0x268ed1e1c94c3a45a14db4108bc306613a1c23fab68e0466a002dfb0a3f8d2ab",
-  "0x0cd8d5695bc2dde99dd531671f76f1482f14ddba8eeca7cb9686d4a62359c257",
-  "0x047fbb7eb974155702149e58ea6ad91f4c6e953e693db35e953e250d8ceac9a9",
-  "0xc5ae2526e665e2c7c698c11a06098b7159f720606d50e7660deb55758b0b02",
-  "0x2ced19489ab456b8b6c424594cdbbae59c36dfdd4c4621c4032da2d8a9674be5",
-  "0x1df5a245ffc1da14b46fe56a605f2a47b1cff1592bab4f66cfe5dfe990af6ab5",
-  "0x2871d090615d14eadb52228c635c90e0adf31176f0814f6525c23e7d7b318c93",
-  "0x1a2b85ff013d4b2b25074297c7e44aa61f4836d0862b36db2e6ce2b5542f9ea9",
-  "0x177b9a10bbee32f77c719c6f8d071a18476cbeb021e155c642bbf93c716ce943",
-];
+// (canonicalEmptyTreeForLeafZero + EMPTY_TREE_PATH_ELEMENTS removed —
+// values are now computed live from user inputs via deriveInputsViaCircuit
+// above. Every call produces a fresh, input-specific (root, nullifier,
+// pathElements) tuple.)
 
 function buildInnerProverToml(args: {
   root: string; nullifier: string;
