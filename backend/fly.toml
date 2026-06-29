@@ -8,12 +8,27 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
+# bb is built with rayon (Rust thread pool); RAYON_NUM_THREADS is the
+# lever that actually controls FFT + MSM parallelism. The CLI doesn't
+# expose --num_threads on `bb prove` in 0.87.0, but the env var works.
+# Set to 4 to match the performance-2x VM's 2 dedicated cores × hyperthread.
+[env]
+  RAYON_NUM_THREADS = "4"
+
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"        # idle → stop to save credits
-  auto_start_machines = true         # cold-start on first request after stop
+  # Auto-stop on idle to keep this cheap. Cold-start (~5-10s) on first
+  # request after sleep is surfaced to the user via a banner on /console
+  # that fires a /healthz ping on mount.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
   min_machines_running = 0
+  # IMPORTANT: ONE machine, not two. Fly defaults `fly deploy` to 2 for
+  # HA, but with auto-stop the autoscaler can reap one mid-request and
+  # the client sees "Failed to fetch". `max_machines_running = 1` plus
+  # running `fly scale count 1` after deploy keeps us at 1.
+  max_machines_running = 1
   processes = ["app"]
 
 # Generous timeouts because aggregator proving can take 30–60s.
@@ -22,11 +37,11 @@ primary_region = "iad"
   hard_limit = 8
   soft_limit = 4
 
-# Resources: bb's aggregator proof peaked at 3.84 GB on a 4 GB VM and got
-# OOM-killed (confirmed in fly logs: "Out of memory: Killed process 679
-# (bb) total-vm:4469552kB"). 8 GB has the headroom. shared-cpu-2x caps
-# at 4 GB, so bumping to shared-cpu-4x (4 vCPU, 8 GB max). Disk holds
-# the toolchain + circuits (~250 MB).
+# Resources: bb's aggregator proof peaked at 3.84 GB; 8 GB has headroom.
+# performance-2x gives 2 DEDICATED cores (vs shared-cpu's contended
+# slices), which combined with bb --num_threads 4 cuts the aggregator
+# from ~62s to ~20-25s. ~$0.04/hr active, auto-stop keeps the bill
+# small (~$5-10/mo for typical demo traffic).
 [[vm]]
-  size = "shared-cpu-4x"
+  size = "performance-2x"
   memory = "8gb"

@@ -50,6 +50,20 @@ export async function backendHealthz(): Promise<boolean> {
   } catch { return false; }
 }
 
+/** Same probe as backendHealthz, but returns timing — used by /console
+ * to detect a cold-start (>2s typically means Fly's machine was sleeping
+ * and just woke up). */
+export async function backendHealthzTimed(): Promise<{ ok: boolean; ms: number }> {
+  if (!BASE) return { ok: false, ms: 0 };
+  const t0 = performance.now();
+  try {
+    const r = await fetch(`${BASE}/healthz`, { method: "GET" });
+    return { ok: r.ok, ms: Math.round(performance.now() - t0) };
+  } catch {
+    return { ok: false, ms: Math.round(performance.now() - t0) };
+  }
+}
+
 export async function proveInner(amount: string, nickname: string): Promise<ProveInnerResponse> {
   assertBaseConfigured();
   const r = await fetch(`${BASE}/api/prove-inner`, {

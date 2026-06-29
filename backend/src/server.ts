@@ -13,8 +13,8 @@ import express from "express";
 import cors from "cors";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
-import { proveInner, proveAggregate, type InnerProofResult } from "./prover.js";
+import { createHash, randomUUID } from "node:crypto";
+import { proveInner, proveAggregate, type InnerProofResult, type OuterProofResult } from "./prover.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "*";
@@ -62,16 +62,59 @@ app.post("/api/prove-inner", async (req, res) => {
 // In "solo" mode the backend loads 3 companion proofs from disk.
 // In "pool" mode the caller supplies the 3 other inner proofs (collected
 // by the pool layer). Always returns the outer proof bytes.
+// Outer-proof cache. Key = SHA-256 over the SORTED inner proof bytes
+// (sort makes it order-independent: {a,b,c,d} and {b,d,a,c} share a key).
+// 10-entry cap. Solo mode (which uses the pinned demo proof) gets near-
+// 100% hit rate after the first run. Pool mode skips the cache.
+const aggregateCache = new Map<string, OuterProofResult>();
+const AGG_CACHE_MAX = 10;
+const HEX = "hex" as const;
+
+function aggregateCacheKey(inners: InnerProofResult[]): string {
+  const sorted = inners
+    .map((i) => createHash("sha256").update(i.proofBytes).digest(HEX))
+    .sort()
+    .join(":");
+  return createHash("sha256").update(sorted).digest(HEX);
+}
+
 app.post("/api/aggregate", async (req, res) => {
   const t0 = Date.now();
   try {
     const { mode, userProof, others } = req.body ?? {};
     const inners = await assembleFour(mode, userProof, others);
+
+    // Cache lookup (solo mode only; pool combinations are unique per user).
+    if (mode === "solo") {
+      const key = aggregateCacheKey(inners);
+      const hit = aggregateCache.get(key);
+      if (hit) {
+        return res.json({
+          proofBytesB64:        Buffer.from(hit.proofBytes).toString("base64"),
+          publicInputsBytesB64: Buffer.from(hit.publicInputsBytes).toString("base64"),
+          aggregatingMs:        Date.now() - t0,
+          cached:               true,
+        });
+      }
+    }
+
     const outer = await proveAggregate(inners);
+
+    if (mode === "solo") {
+      const key = aggregateCacheKey(inners);
+      // LRU-ish: drop oldest if at cap.
+      if (aggregateCache.size >= AGG_CACHE_MAX) {
+        const firstKey = aggregateCache.keys().next().value;
+        if (firstKey) aggregateCache.delete(firstKey);
+      }
+      aggregateCache.set(key, outer);
+    }
+
     res.json({
       proofBytesB64:        Buffer.from(outer.proofBytes).toString("base64"),
       publicInputsBytesB64: Buffer.from(outer.publicInputsBytes).toString("base64"),
       aggregatingMs:        Date.now() - t0,
+      cached:               false,
     });
   } catch (e) {
     console.error("[aggregate] failed:", e);

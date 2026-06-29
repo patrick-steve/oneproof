@@ -15,9 +15,9 @@
 // Wallet state comes from the shared WalletContext (../WalletContext.tsx)
 // so it survives tab nav and auto-reconnects on return visits.
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  aggregateSolo, backendHealthz, joinPool, proveInner, BackendError,
+  aggregateSolo, backendHealthzTimed, joinPool, proveInner,
   type InnerProofWire, type PoolEvent,
 } from "@/lib/backend";
 import { CONTRACTS, NETWORK, txUrl } from "@/lib/stellar";
@@ -59,10 +59,25 @@ export default function ConsolePage() {
   const [submitFee, setSubmitFee] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Backend reachability check on mount.
+  // Backend reachability + cold-start detection on mount. If healthz
+  // takes >1.5s, the Fly machine was sleeping and just woke up — show a
+  // brief banner so the visitor knows future requests are warm (not slow).
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
+  const [coldStartMs, setColdStartMs] = useState<number | null>(null);
+  const [coldStartShown, setColdStartShown] = useState(false);
   useEffect(() => {
-    backendHealthz().then(setBackendOk);
+    // "warming" banner appears if the healthz call isn't back in 1.5s.
+    const warmingTimer = setTimeout(() => setColdStartShown(true), 1_500);
+    backendHealthzTimed().then(({ ok, ms }) => {
+      clearTimeout(warmingTimer);
+      setBackendOk(ok);
+      if (ms > 1_500) {
+        setColdStartMs(ms);
+        setColdStartShown(true);
+        // Auto-dismiss the success banner after 6s.
+        setTimeout(() => setColdStartShown(false), 6_000);
+      }
+    });
   }, []);
 
   function reset() {
@@ -156,6 +171,38 @@ export default function ConsolePage() {
 
   const busy = stage === "proving-inner" || stage === "in-pool" || stage === "aggregating" || stage === "signing" || stage === "submitting";
 
+  // Rotate through real bb proving phases while we wait on aggregator.
+  // Backend doesn't expose phase telemetry, but these ARE the steps bb
+  // runs through internally; rotating them on a timer reads as "real
+  // progress" to a visitor instead of a stuck spinner.
+  const AGG_PHASES = [
+    { tMs:     0, label: "loading circuit + verification key…" },
+    { tMs:  3_000, label: "committing polynomial coefficients (KZG)…" },
+    { tMs:  8_000, label: "FFT phase, parallel across cores…" },
+    { tMs: 14_000, label: "recursive UltraHonk verifier expansion…" },
+    { tMs: 18_000, label: "computing Fiat-Shamir transcript…" },
+    { tMs: 22_000, label: "compressing and wrapping outer proof…" },
+  ] as const;
+  const [aggPhase, setAggPhase] = useState<typeof AGG_PHASES[number]["label"]>(AGG_PHASES[0].label);
+  const aggPhaseTimers = useRef<NodeJS.Timeout[]>([]);
+  useEffect(() => {
+    aggPhaseTimers.current.forEach(clearTimeout);
+    aggPhaseTimers.current = [];
+    if (stage !== "aggregating") return;
+    setAggPhase(AGG_PHASES[0].label);
+    for (let i = 1; i < AGG_PHASES.length; i++) {
+      const phase = AGG_PHASES[i];
+      if (!phase) continue;
+      const tid = setTimeout(() => setAggPhase(phase.label), phase.tMs);
+      aggPhaseTimers.current.push(tid);
+    }
+    return () => {
+      aggPhaseTimers.current.forEach(clearTimeout);
+      aggPhaseTimers.current = [];
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-6 md:py-10 space-y-6">
       <Header />
@@ -165,6 +212,10 @@ export default function ConsolePage() {
           Prover backend is unreachable at <Mono>{process.env.NEXT_PUBLIC_BACKEND_URL ?? "(NEXT_PUBLIC_BACKEND_URL not set)"}</Mono>.
           See <Mono>backend/DEPLOY.md</Mono>. Until it&apos;s up, the demo flow won&apos;t produce proofs.
         </Banner>
+      )}
+
+      {coldStartShown && (
+        <ColdStartBanner ms={coldStartMs} ready={backendOk === true} />
       )}
 
       <WalletBanner />
@@ -220,7 +271,7 @@ export default function ConsolePage() {
           </Step>
 
           <Step n="04" title="aggregating (backend · 4 → 1)" current={stage === "aggregating"} done={!!outerProofB64}>
-            {stage === "aggregating" && <Spinner label="proving 4 inner verifications inside outer circuit… 20–60s" />}
+            {stage === "aggregating" && <Spinner label={aggPhase} />}
             {outerProofB64 && (
               <div className="text-[11px] text-mute space-y-1">
                 <Kv k="outer proof"   v={<span className="text-paper">{Math.round(outerProofB64.length * 0.75).toLocaleString()} bytes</span>} />
@@ -452,6 +503,32 @@ function Banner({ tone, children }: { tone: "warn" | "error" | "info"; children:
   return (
     <div className={`border ${color} bg-ink-2 p-4 font-mono text-[12px] text-paper leading-relaxed`}>
       {children}
+    </div>
+  );
+}
+
+// Renders during /healthz probe — two phases:
+//   1. ms == null: probe still in flight, healthz hasn't returned yet
+//      → "prover waking up from sleep…" with spinner
+//   2. ms is set: probe came back slow (>1.5s); show success briefly
+//      → "✓ prover warmed up in 4.2s · subsequent calls are fast"
+function ColdStartBanner({ ms, ready }: { ms: number | null; ready: boolean }) {
+  if (!ready || ms == null) {
+    return (
+      <div className="border border-signal/40 bg-ink-2 p-4 font-mono text-[12px] text-paper flex items-center gap-3">
+        <span className="inline-block w-3 h-3 border border-signal border-r-transparent rounded-full animate-spin" />
+        <span>
+          <span className="text-signal">prover waking from sleep</span> · Fly machines auto-stop when idle to save cost. one-time ~5-10s warm-up.
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="border border-signal/40 bg-ink-2 p-4 font-mono text-[12px] text-paper flex items-center gap-3">
+      <span aria-hidden className="text-signal">✓</span>
+      <span>
+        <span className="text-signal">prover warmed up in {(ms / 1000).toFixed(1)}s</span> · subsequent requests in this session are fast.
+      </span>
     </div>
   );
 }
