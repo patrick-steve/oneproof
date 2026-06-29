@@ -17,7 +17,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  aggregateSolo, backendHealthzTimed, joinPool, proveInner,
+  aggregateSolo, backendHealthzTimed, joinPool, proveInner, recordActivity,
   type InnerProofWire, type PoolEvent,
 } from "@/lib/backend";
 import { CONTRACTS, NETWORK, txUrl } from "@/lib/stellar";
@@ -163,6 +163,17 @@ export default function ConsolePage() {
       setSubmitTx(hash);
       setSubmitFee(fee);
       setStage("done");
+      // Fire-and-forget: record to the backend activity indexer so the
+      // activity tab can show it. Never blocks success path.
+      void recordActivity({
+        txHash:        hash,
+        contractId:    CONTRACTS.oneproofVerifier,
+        contractLabel: "oneproof",
+        function:      "verify_proof",
+        feeCharged:    fee,
+        mode,
+        proofBytes:    proofBytes.length,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setStage("error");

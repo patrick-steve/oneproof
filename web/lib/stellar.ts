@@ -52,39 +52,28 @@ export function ago(unixSec: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// Fetch the most recent operations on a contract. stellar.expert returns a
-// records-style list; we adapt the field names to our VerifyEvent shape.
-async function fetchContractOps(
-  contractId: string,
-  contractLabel: VerifyEvent["contractLabel"],
-  limit: number,
-): Promise<VerifyEvent[]> {
-  const url = `${NETWORK.expertApi}/contract/${contractId}/operations?order=desc&limit=${limit}`;
-  const resp = await fetch(url, { cache: "no-store" });
-  if (!resp.ok) throw new Error(`stellar.expert ${resp.status} for ${contractLabel}`);
-  const data = await resp.json();
-  const records: any[] = data?._embedded?.records ?? data?.records ?? [];
-  return records.map((r) => ({
-    txHash:        r.transaction ?? r.tx_hash ?? r.id ?? "",
-    ledger:        Number(r.ledger ?? 0),
-    contractId,
-    contractLabel,
-    function:      r.function ?? r.fn ?? "verify_proof",
-    successful:    Boolean(r.successful ?? true),
-    feeCharged:    Number(r.fee ?? r.fee_charged ?? 0),
-    timestamp:     Math.floor(new Date(r.ts ?? r.created_at ?? Date.now()).getTime() / 1000),
-  }));
-}
+// Fetch the most recent verifies from our backend's activity indexer.
+// Replaces an earlier attempt at hitting stellar.expert's REST API which
+// turned out not to expose a per-contract operations endpoint, plus
+// Soroban contracts that don't emit events (like ours) are invisible to
+// getEvents. Our backend records every successful submit from /console,
+// which is the actual interesting data anyway.
+import { fetchActivity } from "@/lib/backend";
 
 export async function fetchRecentVerifies(limit = 25): Promise<VerifyEvent[]> {
-  const [a, b] = await Promise.all([
-    fetchContractOps(CONTRACTS.oneproofVerifier, "oneproof", Math.ceil(limit / 2)).catch(() => []),
-    fetchContractOps(CONTRACTS.groth16BatchVerifier, "groth16-batch", Math.ceil(limit / 2)).catch(() => []),
-  ]);
-  return [...a, ...b]
-    .filter((e) => e.txHash)
-    .sort((x, y) => y.timestamp - x.timestamp)
-    .slice(0, limit);
+  const records = await fetchActivity(limit);
+  return records
+    .map((r) => ({
+      txHash:        r.txHash,
+      ledger:        r.ledger ?? 0,
+      contractId:    r.contractId || CONTRACTS.oneproofVerifier,
+      contractLabel: r.contractLabel,
+      function:      r.function,
+      successful:    true,
+      feeCharged:    r.feeCharged ?? 0,
+      timestamp:     r.timestamp,
+    }))
+    .filter((e) => e.txHash);
 }
 
 // Static fallback (always valid). When the live API is down we still want

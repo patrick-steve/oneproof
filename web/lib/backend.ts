@@ -92,6 +92,43 @@ export async function aggregateSolo(userProof: InnerProofWire): Promise<ProveAgg
   return r.json() as Promise<ProveAggregateResponse>;
 }
 
+// ─── Activity indexer ─────────────────────────────────────────────────
+
+export interface ActivityRecord {
+  txHash: string;
+  ledger?: number;
+  contractId: string;
+  contractLabel: "oneproof" | "groth16-batch";
+  function: string;
+  feeCharged?: number;
+  mode: "solo" | "pool";
+  proofBytes?: number;
+  timestamp: number;
+}
+
+/** Best-effort: record a successful submit so the activity tab can show
+ * it. Swallows all errors — never blocks the user's success flow. */
+export async function recordActivity(rec: Omit<ActivityRecord, "timestamp">): Promise<void> {
+  if (!BASE) return;
+  try {
+    await fetch(`${BASE}/api/activity/record`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(rec),
+    });
+  } catch { /* non-fatal */ }
+}
+
+export async function fetchActivity(limit = 30): Promise<ActivityRecord[]> {
+  if (!BASE) return [];
+  try {
+    const r = await fetch(`${BASE}/api/activity?limit=${limit}`, { cache: "no-store" });
+    if (!r.ok) return [];
+    const data = await r.json() as { records?: ActivityRecord[] };
+    return data.records ?? [];
+  } catch { return []; }
+}
+
 // ─── Pool (SSE) ────────────────────────────────────────────────────────
 
 export type PoolEvent =

@@ -123,6 +123,58 @@ app.post("/api/aggregate", async (req, res) => {
   }
 });
 
+// ─── /api/activity ─────────────────────────────────────────────────────
+// Tiny in-memory indexer. Frontend POSTs every successful submit; the
+// activity tab GETs the list newest-first. Capped at 100 entries (LRU).
+// In-memory only — when Fly auto-stops, the log resets. Acceptable
+// tradeoff: hackathon scale, and the static bench fallback in the
+// frontend always renders something even on a cold machine.
+
+interface ActivityRecord {
+  txHash:         string;
+  ledger?:        number;
+  contractId:     string;
+  contractLabel:  "oneproof" | "groth16-batch";
+  function:       string;
+  feeCharged?:    number;
+  mode:           "solo" | "pool";
+  proofBytes?:    number;
+  timestamp:      number; // unix seconds
+}
+
+const ACTIVITY_MAX = 100;
+const activityLog: ActivityRecord[] = [];
+
+app.post("/api/activity/record", (req, res) => {
+  const b = req.body ?? {};
+  if (typeof b.txHash !== "string" || !b.txHash) {
+    return res.status(400).json({ error: "txHash required" });
+  }
+  // De-duplicate on repeat submits (HMR / accidental double-fires).
+  if (activityLog.some((r) => r.txHash === b.txHash)) {
+    return res.json({ ok: true, deduped: true });
+  }
+  const rec: ActivityRecord = {
+    txHash:        b.txHash,
+    ledger:        typeof b.ledger === "number" ? b.ledger : undefined,
+    contractId:    typeof b.contractId === "string" ? b.contractId : "",
+    contractLabel: b.contractLabel === "groth16-batch" ? "groth16-batch" : "oneproof",
+    function:      typeof b.function === "string" ? b.function : "verify_proof",
+    feeCharged:    typeof b.feeCharged === "number" ? b.feeCharged : undefined,
+    mode:          b.mode === "pool" ? "pool" : "solo",
+    proofBytes:    typeof b.proofBytes === "number" ? b.proofBytes : undefined,
+    timestamp:     Math.floor(Date.now() / 1000),
+  };
+  activityLog.unshift(rec);
+  if (activityLog.length > ACTIVITY_MAX) activityLog.length = ACTIVITY_MAX;
+  res.json({ ok: true, deduped: false, count: activityLog.length });
+});
+
+app.get("/api/activity", (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 30), 1), ACTIVITY_MAX);
+  res.json({ records: activityLog.slice(0, limit), total: activityLog.length });
+});
+
 // ─── /api/pool/join (SSE) ─────────────────────────────────────────────
 // Mode 2: client POSTs their inner proof with an Accept: text/event-stream
 // header. We hold their request open and stream JSON-encoded events:
