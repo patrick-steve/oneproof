@@ -33,4 +33,18 @@ else
   mkdir -p companions
 fi
 
+echo "▸ staging pre-baked aggregator outer proof from ../web/public/example/oneproof-aggregator/ …"
+rm -rf prebaked
+if [ -f "../web/public/example/oneproof-aggregator/proof.bin" ] \
+   && [ -f "../web/public/example/oneproof-aggregator/public_inputs.bin" ]; then
+  mkdir -p prebaked
+  cp "../web/public/example/oneproof-aggregator/proof.bin"         prebaked/outer-proof.bin
+  cp "../web/public/example/oneproof-aggregator/public_inputs.bin" prebaked/outer-public-inputs.bin
+  echo "  ✓ prebaked $(stat -c%s prebaked/outer-proof.bin) byte outer proof"
+else
+  echo "  ⚠ no prebaked aggregator outer proof — first solo aggregate"
+  echo "    will pay full proving cost (60-180s on shared-cpu)."
+  mkdir -p prebaked
+fi
+
 echo "✓ staged. now: fly deploy"

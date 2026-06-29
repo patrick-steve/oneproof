@@ -75,6 +75,13 @@ COPY              package.json      ./
 COPY circuits   ./circuits
 COPY companions ./companions
 
+# Pre-baked aggregator OUTER proof (canonical solo demo result). Server
+# loads this at startup, computes the deterministic cache key for the
+# solo path, and pre-populates the in-memory cache so the first solo
+# /api/aggregate request returns instantly instead of waiting 60-180s
+# on shared CPU.
+COPY prebaked   ./prebaked
+
 EXPOSE 8080
 ENV PORT=8080 NODE_ENV=production
 

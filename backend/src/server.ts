@@ -19,6 +19,7 @@ import { proveInner, proveAggregate, type InnerProofResult, type OuterProofResul
 const PORT = Number(process.env.PORT ?? 8080);
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "*";
 const COMPANIONS_DIR = process.env.COMPANIONS_DIR ?? "/app/companions";
+const PREBAKED_DIR   = process.env.PREBAKED_DIR   ?? "/app/prebaked";
 const POOL_TARGET = 4;
 const POOL_TIMEOUT_MS = 15_000;
 
@@ -337,10 +338,55 @@ function errMsg(e: unknown): string {
   return String(e);
 }
 
+// Pre-populate the in-memory cache from the pre-baked outer proof
+// shipped in the Docker image at /app/prebaked/. The "solo" path's
+// cache key is deterministic (4 byte-identical inner proofs, since
+// user inputs are pinned to demo values in this iteration of the
+// prover). So we can compute the exact key offline and load the
+// canonical outer proof under it. First user click hits the cache.
+async function prewarmSoloCache(): Promise<void> {
+  try {
+    const proofFile = join(PREBAKED_DIR, "outer-proof.bin");
+    const piFile    = join(PREBAKED_DIR, "outer-public-inputs.bin");
+    const [outerProofBytes, outerPiBytes] = await Promise.all([
+      readFile(proofFile),
+      readFile(piFile),
+    ]);
+
+    // Reproduce the cache key as if we'd just aggregated 4 copies of a
+    // companion (= the canonical solo case where user proof is byte-
+    // identical to the companion files). assembleFour("solo", x, _)
+    // returns [user, comp1, comp2, comp3] — all identical bytes.
+    const companions = await loadCompanions(3);
+    const userLike   = companions[0]; // any one of them — same bytes
+    if (!userLike) {
+      console.warn("[prewarm] no companions, skipping cache prewarm");
+      return;
+    }
+    const inners = [userLike, ...companions];
+    const key = aggregateCacheKey(inners);
+
+    aggregateCache.set(key, {
+      proofBytes:        new Uint8Array(outerProofBytes),
+      publicInputsBytes: new Uint8Array(outerPiBytes),
+    });
+    console.log(
+      `[prewarm] solo cache populated · key=${key.slice(0, 16)}… · ` +
+      `${outerProofBytes.length} byte outer proof`,
+    );
+  } catch (e) {
+    // Non-fatal: if prebaked files missing, first solo call just pays
+    // the full proving cost and then populates the cache normally.
+    console.warn(`[prewarm] skipped:`, e instanceof Error ? e.message : e);
+  }
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`[oneproof-backend] listening on :${PORT}`);
   console.log(`[oneproof-backend] CIRCUITS_DIR=${process.env.CIRCUITS_DIR ?? "/app/circuits"}`);
   console.log(`[oneproof-backend] COMPANIONS_DIR=${COMPANIONS_DIR}`);
+  console.log(`[oneproof-backend] PREBAKED_DIR=${PREBAKED_DIR}`);
   console.log(`[oneproof-backend] FRONTEND_ORIGIN=${FRONTEND_ORIGIN}`);
+  await prewarmSoloCache();
 });
