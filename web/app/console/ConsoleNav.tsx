@@ -9,7 +9,8 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/console",           label: "demo" },        // Flow B — the unified product demo
-  { href: "/console/verify",    label: "submits" },     // submissions through this site (persists across restarts)
+  { href: "/console/pool",      label: "pool" },        // real privacy pool: deposit + batch withdraw
+  { href: "/console/verify",    label: "submits" },     // submissions through this site
   { href: "/console/aggregate", label: "aggregator" },  // technical view of the aggregation math
 ] as const;
 

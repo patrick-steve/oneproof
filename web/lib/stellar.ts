@@ -8,8 +8,10 @@
 import { RESULTS } from "@/lib/bench";
 
 export const CONTRACTS = {
-  oneproofVerifier: RESULTS.contracts.oneproof_verifier,
+  oneproofVerifier:     RESULTS.contracts.oneproof_verifier,
   groth16BatchVerifier: RESULTS.contracts.groth16_batch_verifier,
+  oneproofPool:         RESULTS.contracts.oneproof_pool,
+  nativeXlmSac:         RESULTS.contracts.native_xlm_sac,
 } as const;
 
 export const NETWORK = {
