@@ -46,11 +46,15 @@ RUN npx tsc -p tsconfig.json
 # ─── Stage 3: runtime ─────────────────────────────────────────────────
 FROM ubuntu:24.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
-# bb shells out to jq + gzip for its bytes_and_fields output pipeline;
-# we hit "sh: jq: not found" without them. xz-utils + tar are similar
-# common deps for the toolchain.
+# Runtime needs:
+#   - jq + gzip — bb's bytes_and_fields pipeline shells out to them
+#   - git       — nargo git clones bb_proof_verification at runtime when
+#                 the aggregator circuit is invoked (and at our build-time
+#                 pre-warm step). Without it: "git clone command failed
+#                 to start: No such file or directory".
+#   - xz-utils + tar — common toolchain deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl ca-certificates jq gzip xz-utils tar \
+      curl ca-certificates jq gzip git xz-utils tar \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
@@ -82,6 +86,12 @@ RUN groupadd --system app \
     && chown -R app:app /app /home/app
 ENV HOME=/home/app
 USER app
-RUN cd /app/circuits/aggregator && (nargo info 2>&1 | tail -3) || true
+# Pre-warm nargo's git cache so the first /api/aggregate call doesn't
+# pay the ~5s clone latency. Logs PREWARM_OK or PREWARM_FAIL so the
+# build log shows what happened. Non-fatal either way; runtime will
+# fall back to lazy fetch on first request.
+RUN cd /app/circuits/aggregator \
+    && (nargo info 2>&1 | tail -5 && echo PREWARM_OK) \
+    || echo PREWARM_FAIL
 
 CMD ["node", "dist/server.js"]
