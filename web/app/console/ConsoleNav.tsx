@@ -8,9 +8,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/console/verify",    label: "verify" },
-  { href: "/console/submit",    label: "submit" },
-  { href: "/console/aggregate", label: "aggregate" },
+  { href: "/console",           label: "demo" },        // Flow B — the unified product demo
+  { href: "/console/verify",    label: "activity" },    // live tx feed (deep dive)
+  { href: "/console/aggregate", label: "aggregator" },  // technical view of the aggregation math
 ] as const;
 
 export default function ConsoleNav() {
@@ -18,7 +18,11 @@ export default function ConsoleNav() {
   return (
     <nav className="flex items-center gap-1 overflow-x-auto">
       {TABS.map((t) => {
-        const active = pathname?.startsWith(t.href);
+        // /console is the demo (exact match); the others use startsWith
+        // so deeper sub-routes still keep the tab highlighted.
+        const active = t.href === "/console"
+          ? pathname === "/console"
+          : pathname?.startsWith(t.href);
         return (
           <Link
             key={t.href}

@@ -1,0 +1,30 @@
+# Fly.io app config — OneProof prover backend.
+# Run `fly launch --no-deploy` once to create the app, then ./prepare.sh && fly deploy.
+# See DEPLOY.md for the full one-time setup.
+
+app = "oneproof-backend"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"        # idle → stop to save credits
+  auto_start_machines = true         # cold-start on first request after stop
+  min_machines_running = 0
+  processes = ["app"]
+
+# Generous timeouts because aggregator proving can take 30–60s.
+[http_service.concurrency]
+  type = "requests"
+  hard_limit = 8
+  soft_limit = 4
+
+# Resources: bb is memory-hungry during proving (peak ~3 GB for the
+# aggregator over K=4). Start with 4 GB shared CPU; bump to 8 GB if proofs
+# OOM. Disk holds the toolchain + circuits (~250 MB).
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "4gb"

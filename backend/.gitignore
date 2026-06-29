@@ -1,0 +1,7 @@
+node_modules
+dist
+*.log
+.env*
+# Staged at deploy time by prepare.sh — never committed.
+circuits/
+companions/
