@@ -22,9 +22,10 @@ primary_region = "iad"
   hard_limit = 8
   soft_limit = 4
 
-# Resources: bb is memory-hungry during proving (peak ~3 GB for the
-# aggregator over K=4). Start with 4 GB shared CPU; bump to 8 GB if proofs
-# OOM. Disk holds the toolchain + circuits (~250 MB).
+# Resources: bb's aggregator proof peaked at 3.84 GB on a 4 GB VM and got
+# OOM-killed (confirmed in fly logs: "Out of memory: Killed process 679
+# (bb) total-vm:4469552kB"). 8 GB has the headroom. Disk holds the
+# toolchain + circuits (~250 MB).
 [[vm]]
   size = "shared-cpu-2x"
-  memory = "4gb"
+  memory = "8gb"
