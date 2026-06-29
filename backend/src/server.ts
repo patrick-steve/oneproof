@@ -184,7 +184,7 @@ async function runFallback(entry: PoolEntry) {
   pool.splice(idx, 1);
   sendEvent(entry, { type: "fallback", reason: "timeout" });
   try {
-    const inners = await assembleFour("solo", innerToWire(entry.inner));
+    const inners = await assembleFour("solo", innerToWire(entry.inner), undefined);
     const t0 = Date.now();
     const outer = await proveAggregate(inners);
     sendEvent(entry, {
