@@ -2,37 +2,43 @@ import type { ReactNode } from "react";
 import HeroChart from "@/components/HeroChart";
 import PipelinePlayer from "@/components/PipelinePlayer";
 import StellarLive from "@/components/StellarLive";
+import WallViz from "@/components/WallViz";
 import ZkExplainer from "@/components/ZkExplainer";
 import { RESULTS, crossoverN_naiveVsRecursive } from "@/lib/bench";
 
-// Landing v3 — judge-eye polish. The cost chart is the actual thesis;
-// it now lives in the hero so a first-time visitor sees the curve above
-// the fold instead of having to scroll to section 02. The decorative
-// orbiting-hexes 3D scene is removed from the hero (it still lives in
-// the Remotion pipeline section below, where it earns its keep by
-// telling a sequenced story).
-//
-// Palette stays V2 (black + blue + yellow). Type scale dialed back so
-// a 1920px monitor doesn't get 350px-tall letters.
+// Landing v4 — section-by-section polish. Hero v3 was locked in (chart
+// above the fold, value prop in subhead, dialed type). This pass applies
+// the same lens to every other section:
+//   01 wall      — text + WallViz (linear growth bars overflowing the box)
+//   02 zk        — refactored ZkExplainer: bigger equations + real values
+//   03 pipeline  — slightly tightened framing
+//   04 numbers   — bigger stats + savings comparison + StellarLive
+//   05 caveats   — tighter lead
+//   06 run it    — annotated commands
 
 const CONTRACTS = RESULTS.contracts;
+const NAIVE_PER_TX = 30_556;
 const NAIVE_AT_4 = RESULTS.runs.find((r) => r.mode === "naive" && r.n === 4)?.resourceFeeStroops ?? 0;
 const RECURSIVE_AT_4 = RESULTS.runs.find((r) => r.mode === "recursive" && r.n === 4)?.resourceFeeStroops ?? 0;
 const RECURSIVE_TX = RESULTS.runs.find((r) => r.mode === "recursive")?.txHashes?.[0] ?? "";
 const CROSSOVER = crossoverN_naiveVsRecursive();
+
+const fmtStroops = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)} M` :
+  n >= 1_000     ? `${(n / 1_000).toFixed(1)} K` :
+                   n.toLocaleString();
 
 export default function Page() {
   return (
     <main className="w-full">
       <TopAnchor />
 
-      {/* ─── HERO ─ value prop + chart side-by-side on desktop ─────────── */}
+      {/* ─── HERO ─ chart in hero, value prop on the left ──────────── */}
       <section
         id="hero"
         className="relative w-full min-h-screen flex flex-col px-5 md:px-10 lg:px-14 pt-20 md:pt-24 pb-12"
       >
         <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-10 lg:gap-14 flex-1">
-          {/* LEFT — value prop */}
           <div className="flex flex-col justify-center space-y-6 lg:space-y-8 max-w-[680px]">
             <div className="font-mono text-[12px] md:text-[13px] uppercase tracking-[0.14em] text-mute">
               ZK proof aggregation <span className="text-line mx-2">·</span> Stellar testnet <span className="text-line mx-2">·</span> <span className="text-signal">live</span>
@@ -67,7 +73,6 @@ export default function Page() {
             </div>
           </div>
 
-          {/* RIGHT — the chart, the actual demo */}
           <div className="flex flex-col justify-center min-h-[60vh] lg:min-h-0">
             <HeroChart />
             <p className="text-mute text-xs md:text-sm mt-4 font-mono leading-relaxed">
@@ -85,68 +90,111 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ─── 01 · THE WALL ─────────────────────────────────────────────── */}
-      <Section id="wall" n="01" title="the wall">
-        <Prose>
-          Verifying N proofs costs roughly N verifications. That linear wall is
-          why private apps stall on-chain at single-digit throughput. Stellar
-          Protocol 25 and 26 shipped the primitives that make individual proofs
-          cheap (BN254 host functions, MSM). The wall stays linear without
-          aggregation.
-        </Prose>
+      {/* ─── 01 · THE WALL ─ text + WallViz side-by-side ─────────────── */}
+      <Section
+        id="wall"
+        n="01"
+        title="the wall"
+        lead="Without aggregation, every proof is its own transaction. The cost grows linearly. That's the wall private apps stall against on every chain."
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-10 lg:gap-14">
+          <div className="space-y-5 max-w-prose">
+            <p className="text-body text-mute leading-relaxed">
+              Stellar Protocol 25 and 26 shipped the primitives that make a
+              single proof cheap to verify: BN254 host functions for pairings,
+              MSM for batched scalar multiplication. Those are real wins.
+            </p>
+            <p className="text-body text-mute leading-relaxed">
+              But cheap-per-proof doesn&apos;t change the slope. A thousand
+              private transfers means a thousand verifies, a thousand
+              transactions, a thousand fees. <span className="text-paper">Linear
+              cost in N is the wall.</span>
+            </p>
+            <p className="text-body text-mute leading-relaxed">
+              Aggregation flattens the slope, because the chain verifies one
+              outer proof instead of N inner ones. That&apos;s the whole
+              project, in one sentence.
+            </p>
+          </div>
+          <div>
+            <WallViz />
+          </div>
+        </div>
       </Section>
 
-      {/* ─── 02 · WHAT THE PROOF PROVES ─ moved up; judges need this early ─── */}
-      <Section id="zk" n="02" title="what the proof proves">
+      {/* ─── 02 · WHAT THE PROOF PROVES ─────────────────────────────── */}
+      <Section
+        id="zk"
+        n="02"
+        title="what the proof proves"
+        lead="Each private transfer runs the same circuit and emits one proof of three facts. Those are the facts the aggregator collapses together."
+      >
         <ZkExplainer />
       </Section>
 
-      {/* ─── 03 · THE PIPELINE ─ full-bleed, R3F + scroll-scrubbed ─────── */}
+      {/* ─── 03 · THE PIPELINE ─ R3F + scroll-scrubbed ─────────────── */}
       <section id="pipeline" className="w-full bg-ink-2 border-y border-line">
-        <div className="px-5 md:px-10 lg:px-14 pt-16 md:pt-20 pb-8 space-y-4">
-          <Eyebrow>03 · pipeline</Eyebrow>
+        <div className="px-5 md:px-10 lg:px-14 pt-16 md:pt-20 pb-8 space-y-5">
+          <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-mute">
+            03 <span className="text-line mx-2">·</span> pipeline <span className="text-line mx-2">·</span> twelve seconds, scroll to scrub
+          </div>
           <h2 className="font-display font-semibold text-display-section text-paper">
-            The collapse, scrubbed in scroll.
+            The collapse, sequenced.
           </h2>
-          <Prose>
-            Five scenes, twelve seconds. Inner proofs generate in parallel,
-            converge into an aggregator, emit a single outer proof, fly into
-            a Soroban contract. The receipt at the end is a real testnet
-            transaction hash anyone can replay.
-          </Prose>
+          <p className="text-body text-mute leading-relaxed max-w-prose">
+            Four inner proofs generate in parallel. They converge into an
+            aggregator. The aggregator emits a single outer proof. It flies
+            into a Soroban contract. The receipt at the end is a real
+            testnet transaction hash anyone can replay.
+          </p>
         </div>
         <PipelinePlayer />
       </section>
 
-      {/* ─── 04 · THE NUMBERS ─ huge mono readouts + live counter ───── */}
-      <Section id="numbers" n="04" title="the numbers" caption="measured · stellar testnet">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-line mt-2">
-          <BigStat
-            label="crossover N"
-            value={`≈ ${CROSSOVER}`}
-            caption="where recursive beats naive"
-            tone="signal"
-          />
-          <BigStat
-            label="recursive · 1 tx"
-            value={RECURSIVE_AT_4.toLocaleString()}
-            caption="stroops, flat in N"
-            tone="signal"
-          />
-          <BigStat
-            label="naive · 4 txs"
-            value={NAIVE_AT_4.toLocaleString()}
-            caption="stroops, linear in N"
-            tone="foil"
-          />
-        </div>
-        <div className="mt-10 max-w-2xl">
-          <StellarLive />
+      {/* ─── 04 · THE NUMBERS ─ stats + savings + live ──────────────── */}
+      <Section
+        id="numbers"
+        n="04"
+        title="the numbers"
+        lead="Measured on Stellar testnet. Real transaction hashes, real fees, every value linkable to a stellar.expert page."
+      >
+        <div className="space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-line">
+            <BigStat
+              label="crossover N"
+              value={`≈ ${CROSSOVER}`}
+              caption="where recursive beats naive"
+              tone="signal"
+            />
+            <BigStat
+              label="recursive · 1 tx"
+              value={RECURSIVE_AT_4.toLocaleString()}
+              caption="stroops, flat in N"
+              tone="signal"
+            />
+            <BigStat
+              label="naive · 4 txs"
+              value={NAIVE_AT_4.toLocaleString()}
+              caption="stroops, linear in N"
+              tone="foil"
+            />
+          </div>
+
+          <SavingsTable />
+
+          <div className="max-w-2xl">
+            <StellarLive />
+          </div>
         </div>
       </Section>
 
       {/* ─── 05 · WHAT THIS IS / ISN'T ─────────────────────────────── */}
-      <Section id="caveats" n="05" title="what this is, and isn't" caption="honesty over rhetoric">
+      <Section
+        id="caveats"
+        n="05"
+        title="what this is, and isn't"
+        lead="Honesty over rhetoric. Naming the limits is what separates a demonstration from a sales deck."
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-line">
           <CaveatColumn tone="signal" head="is">
             <li>Real Groth16 and UltraHonk proofs over a real privacy-transfer circuit.</li>
@@ -163,16 +211,30 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 06 · RUN IT ───────────────────────────────────────────── */}
-      <Section id="run" n="06" title="run it" caption="one command · testnet · open source">
-        <pre className="font-mono text-xs md:text-sm text-paper border border-line p-5 md:p-8 bg-ink-2 overflow-x-auto leading-relaxed max-w-3xl">
+      {/* ─── 06 · RUN IT ────────────────────────────────────────────── */}
+      <Section
+        id="run"
+        n="06"
+        title="run it"
+        lead="One command per step, testnet end to end. The contract IDs are pinned; you'll get the exact same on-chain artifacts we did."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl">
+          <pre className="font-mono text-xs md:text-sm text-paper border border-line p-5 md:p-8 bg-ink-2 overflow-x-auto leading-relaxed">
 {`git clone <repo> && cd oneproof
-./scripts/build.sh        # circuits + contracts
-./scripts/deploy.sh       # testnet
-./scripts/bench.sh        # bench/results.json
-cd web && pnpm dev        # this page, locally`}
-        </pre>
-        <div className="mt-8 flex flex-wrap items-center gap-6 font-mono text-sm">
+./scripts/build.sh
+./scripts/deploy.sh
+./scripts/bench.sh
+cd web && pnpm dev`}
+          </pre>
+          <ul className="space-y-3 text-sm font-mono">
+            <RunStep label="git clone …"      sub="grab the repo · two submodules (forks) come with it" />
+            <RunStep label="build.sh"         sub="compiles circuits (Noir + Circom) and contracts (Soroban wasm)" />
+            <RunStep label="deploy.sh"        sub="deploys both verifier contracts to Stellar testnet, prints IDs" />
+            <RunStep label="bench.sh"         sub="runs the M ∈ {1,2,4} sweep, writes bench/results.json" />
+            <RunStep label="pnpm dev"         sub="serves this page locally on http://localhost:3000" />
+          </ul>
+        </div>
+        <div className="mt-10 flex flex-wrap items-center gap-6 font-mono text-sm">
           <a className="text-signal hover:text-paper transition-colors" href="/console/verify">
             → open the console
           </a>
@@ -184,6 +246,52 @@ cd web && pnpm dev        # this page, locally`}
 
       <Footer />
     </main>
+  );
+}
+
+// ─── savings table — concrete projection from measured numbers ────────
+function SavingsTable() {
+  const rows = [
+    { n: 1,    label: "single proof" },
+    { n: 4,    label: "measured today" },
+    { n: 16,   label: "small batch" },
+    { n: 64,   label: "moderate" },
+    { n: 256,  label: "high-throughput app" },
+    { n: 1024, label: "rollup-scale" },
+  ];
+  return (
+    <div className="border border-line bg-ink-2">
+      <div className="px-5 md:px-6 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-mute flex items-baseline justify-between border-b border-line">
+        <span>savings at scale · projected from measured per-tx cost</span>
+        <span className="text-mute">recursive · flat at {RECURSIVE_AT_4.toLocaleString()} stroops</span>
+      </div>
+      <div className="font-mono text-[12px] md:text-sm">
+        {rows.map((r) => {
+          const naive = NAIVE_PER_TX * r.n;
+          const recursiveBeatsNaive = naive > RECURSIVE_AT_4;
+          const factor = naive / RECURSIVE_AT_4;
+          return (
+            <div
+              key={r.n}
+              className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 md:gap-x-8 items-baseline px-5 md:px-6 py-2.5 border-b border-line last:border-b-0"
+            >
+              <span className="text-paper w-16">N = {r.n.toLocaleString()}</span>
+              <span className="text-mute text-[11px] uppercase tracking-[0.06em]">{r.label}</span>
+              <span className="text-foil text-right">
+                {fmtStroops(naive)} <span className="text-mute text-[10px]">stroops · {r.n} tx</span>
+              </span>
+              <span
+                className={`text-right w-24 md:w-28 ${recursiveBeatsNaive ? "text-signal" : "text-mute"}`}
+              >
+                {recursiveBeatsNaive
+                  ? `${factor.toFixed(factor > 100 ? 0 : 1)}× cheaper`
+                  : `loses by ${(RECURSIVE_AT_4 / naive).toFixed(1)}×`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -210,45 +318,34 @@ function Section({
   n,
   title,
   caption,
+  lead,
   children,
 }: {
   id: string;
   n: string;
   title: string;
   caption?: string;
+  lead?: string;
   children: ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      className="w-full border-t border-line py-16 md:py-24"
-    >
-      <header className="px-5 md:px-10 lg:px-14 mb-8 md:mb-12 space-y-3 md:space-y-5">
+    <section id={id} className="w-full border-t border-line py-16 md:py-24">
+      <header className="px-5 md:px-10 lg:px-14 mb-8 md:mb-12 space-y-4 md:space-y-6">
         <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-mute">
-          {n}{caption ? <> <span className="text-line mx-2">·</span> {caption}</> : null}
+          {n}
+          {caption ? <> <span className="text-line mx-2">·</span> {caption}</> : null}
         </div>
         <h2 className="font-display font-semibold text-display-section text-paper">
           {title}
         </h2>
+        {lead && (
+          <p className="text-body text-paper/80 leading-relaxed max-w-prose">
+            {lead}
+          </p>
+        )}
       </header>
       <div className="px-5 md:px-10 lg:px-14">{children}</div>
     </section>
-  );
-}
-
-function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-mute">
-      {children}
-    </div>
-  );
-}
-
-function Prose({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-body text-mute max-w-prose leading-relaxed">
-      {children}
-    </p>
   );
 }
 
@@ -294,6 +391,15 @@ function CaveatColumn({
         {children}
       </ul>
     </div>
+  );
+}
+
+function RunStep({ label, sub }: { label: string; sub: string }) {
+  return (
+    <li className="flex flex-col">
+      <span className="text-signal">{label}</span>
+      <span className="text-mute text-xs mt-1 leading-relaxed">{sub}</span>
+    </li>
   );
 }
 
