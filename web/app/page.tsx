@@ -36,10 +36,10 @@ export default function Page() {
       {/* ─── HERO ─ chart in hero, value prop on the left ──────────── */}
       <section
         id="hero"
-        className="relative w-full min-h-screen flex flex-col px-5 md:px-10 lg:px-14 pt-20 md:pt-24 pb-12"
+        className="relative w-full min-h-screen flex flex-col px-5 md:px-10 lg:px-14 pt-16 md:pt-20 pb-10"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-10 lg:gap-14 flex-1">
-          <div className="flex flex-col justify-center space-y-6 lg:space-y-8 max-w-[680px]">
+        <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-8 lg:gap-12 flex-1">
+          <div className="flex flex-col justify-center space-y-5 lg:space-y-6 max-w-[600px]">
             <div className="font-mono text-[12px] md:text-[13px] uppercase tracking-[0.14em] text-mute">
               ZK proof aggregation <span className="text-line mx-2">·</span> Stellar testnet <span className="text-line mx-2">·</span> <span className="text-signal">live</span>
             </div>

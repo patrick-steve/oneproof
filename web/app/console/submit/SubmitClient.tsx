@@ -1,19 +1,17 @@
 "use client";
 
 // Submit tab — wire the OneProof verifier on testnet from the browser.
+//
 // Three stages:
 //   1. Load an example proof (the K=4 aggregator's outer proof, served as
-//      a static asset from /public/example/). User can also paste their own.
-//   2. Simulate via Soroban RPC. Free, no signing required. Returns the
-//      simulated result + resource fee estimate.
-//   3. Sign + submit via Freighter wallet. Requires the extension installed
-//      and an account funded on testnet. We use the user's account as the
-//      source — the tx fee comes from their XLM, not ours.
+//      a static asset from /public/example/).
+//   2. Simulate via Soroban RPC. Free, no signing required.
+//   3. Sign + submit via Freighter wallet.
 //
 // stellar-sdk (~70 KB minified) is loaded lazily inside the handlers so
-// it's not in the initial route bundle. freighter-api stays eager (small).
-// Wallet state lives in the shared WalletContext so connection persists
-// across tab navigation.
+// it's not in the initial route bundle. freighter-api stays eager. Wallet
+// state lives in the shared WalletContext (see ../WalletContext.tsx) so
+// connection survives tab navigation AND auto-reconnects on return visits.
 
 import { useState } from "react";
 import { CONTRACTS, NETWORK, txUrl } from "@/lib/stellar";
@@ -75,13 +73,15 @@ export default function SubmitClient() {
     setError(null);
     setSim(null);
     try {
-      // Lazy-load stellar-sdk only when the user actually wants to simulate.
       const StellarSdk = await import("@stellar/stellar-sdk");
-      const result = await simulateVerifyProof(StellarSdk, bundle, wallet.address ?? FALLBACK_SIMULATE_SOURCE);
+      // sim can run without a wallet — we use the wallet's address if
+      // available, otherwise a syntactically-valid throwaway pubkey.
+      const source = wallet.address ?? StellarSdk.Keypair.random().publicKey();
+      const result = await simulateVerifyProof(StellarSdk, bundle, source);
       setSim(result);
       setStage("simulated");
     } catch (e) {
-      setError(String(e));
+      setError(prettyError(e));
       setStage("error");
     }
   }
@@ -100,7 +100,7 @@ export default function SubmitClient() {
       setSubmitTx(hash);
       setStage("submitted");
     } catch (e) {
-      setError(String(e));
+      setError(prettyError(e));
       setStage("error");
     }
   }
@@ -108,6 +108,7 @@ export default function SubmitClient() {
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-6 md:py-10 space-y-6">
       <Header />
+      <WalletBanner />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-px bg-line">
         {/* LEFT: form + actions */}
@@ -131,7 +132,7 @@ export default function SubmitClient() {
           </section>
 
           <section className="space-y-3 pt-2 border-t border-line">
-            <SectionLabel n="02" title="simulate (free)" />
+            <SectionLabel n="02" title="simulate (free, no wallet needed)" />
             <p className="text-[11px] text-mute leading-relaxed">
               Soroban RPC simulates the call against the live ledger. Returns the
               resource fee and the return value without signing or submitting.
@@ -147,14 +148,14 @@ export default function SubmitClient() {
 
           <section className="space-y-3 pt-2 border-t border-line">
             <SectionLabel n="03" title="sign + submit (wallet)" />
-            <WalletConnect />
             <button
               onClick={runSubmit}
               disabled={!bundle || !wallet.address || stage === "signing" || stage === "submitting"}
-              className="inline-flex items-center bg-signal text-ink px-4 py-2 text-[12px] uppercase tracking-[0.08em] hover:bg-signal/90 disabled:opacity-40 disabled:hover:bg-signal transition-colors"
+              className="inline-flex items-center bg-signal text-ink px-4 py-2 text-[12px] uppercase tracking-[0.08em] hover:bg-signal/90 disabled:opacity-40 disabled:hover:bg-signal disabled:cursor-not-allowed transition-colors"
             >
               {stage === "signing" ? "waiting for Freighter…" :
                stage === "submitting" ? "submitting…" :
+               !wallet.address ? "connect wallet above to enable" :
                "submit to testnet"}
             </button>
           </section>
@@ -217,6 +218,85 @@ function Header() {
   );
 }
 
+// Banner at the top of the page making the wallet state obvious. Sits
+// between the header and the form so the visitor knows up front what's
+// gated behind the wallet connection.
+function WalletBanner() {
+  const { address, allowed, installed, error, connect, disconnect } = useWallet();
+
+  if (address) {
+    return (
+      <div className="border border-line bg-ink-2 p-4 font-mono flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-[12px]">
+          <span aria-hidden className="inline-block w-2 h-2 rounded-full bg-signal" />
+          <span className="text-mute uppercase tracking-[0.08em]">wallet connected</span>
+          <a
+            href={`${NETWORK.explorerBase}/account/${address}`}
+            target="_blank"
+            rel="noopener"
+            className="text-paper hover:text-signal break-all"
+          >
+            {address.slice(0, 8)}…{address.slice(-6)}
+          </a>
+        </div>
+        <button
+          onClick={disconnect}
+          className="text-[11px] uppercase tracking-[0.08em] text-mute hover:text-foil transition-colors"
+        >
+          disconnect
+        </button>
+      </div>
+    );
+  }
+
+  if (!installed) {
+    return (
+      <div className="border border-line bg-ink-2 p-4 font-mono space-y-3">
+        <div className="flex items-center gap-3 text-[12px]">
+          <span aria-hidden className="inline-block w-2 h-2 rounded-full bg-mute" />
+          <span className="text-mute uppercase tracking-[0.08em]">freighter not installed</span>
+        </div>
+        <p className="text-[11px] text-mute leading-relaxed max-w-2xl">
+          You can still <span className="text-paper">load + simulate</span> a
+          proof without a wallet. Submitting requires Freighter, the Stellar
+          browser wallet.
+        </p>
+        <a
+          href="https://freighter.app/"
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center bg-signal text-ink px-4 py-2 text-[12px] uppercase tracking-[0.08em] hover:bg-signal/90 transition-colors"
+        >
+          install freighter →
+        </a>
+      </div>
+    );
+  }
+
+  // Installed but not allowed (no wallet address yet).
+  return (
+    <div className="border border-line bg-ink-2 p-4 font-mono space-y-3">
+      <div className="flex items-center gap-3 text-[12px]">
+        <span aria-hidden className="inline-block w-2 h-2 rounded-full bg-mute" />
+        <span className="text-mute uppercase tracking-[0.08em]">
+          {allowed ? "wallet allowed · reading address…" : "wallet ready · not connected"}
+        </span>
+      </div>
+      <p className="text-[11px] text-mute leading-relaxed max-w-2xl">
+        Make sure Freighter is set to <span className="text-paper">Test SDF Network ; September 2015</span>.
+        Need testnet XLM? <a className="text-signal hover:text-paper" href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noopener">friendbot at Stellar Laboratory</a>.
+      </p>
+      {error && <div className="text-[11px] text-foil break-all">{error}</div>}
+      <button
+        onClick={connect}
+        className="inline-flex items-center bg-signal text-ink px-4 py-2 text-[12px] uppercase tracking-[0.08em] hover:bg-signal/90 transition-colors"
+      >
+        connect freighter →
+      </button>
+    </div>
+  );
+}
+
 function SectionLabel({ n, title }: { n: string; title: string }) {
   return (
     <div className="flex items-baseline gap-3">
@@ -235,51 +315,6 @@ function Kv({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function WalletConnect() {
-  const { address, error, installed, connect, disconnect } = useWallet();
-  if (address) {
-    return (
-      <div className="text-[11px] text-mute space-y-1.5">
-        <div>
-          connected ·{" "}
-          <a
-            href={`${NETWORK.explorerBase}/account/${address}`}
-            target="_blank"
-            rel="noopener"
-            className="text-paper hover:text-signal break-all"
-          >
-            {address.slice(0, 6)}…{address.slice(-6)}
-          </a>
-        </div>
-        <button
-          onClick={disconnect}
-          className="text-mute text-[10px] uppercase tracking-[0.08em] hover:text-foil transition-colors"
-        >
-          disconnect
-        </button>
-      </div>
-    );
-  }
-  if (!installed || error) {
-    return (
-      <div className="text-[11px] text-mute space-y-2">
-        {error && <div>{error}</div>}
-        <a href="https://freighter.app/" target="_blank" rel="noopener" className="inline-flex text-signal hover:text-paper text-[12px]">
-          install Freighter ↗
-        </a>
-      </div>
-    );
-  }
-  return (
-    <button
-      onClick={connect}
-      className="inline-flex items-center border border-line text-paper px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] hover:border-signal hover:text-signal transition-colors"
-    >
-      connect Freighter
-    </button>
-  );
-}
-
 function FooterNote() {
   return (
     <div className="text-[11px] text-mute font-mono border border-line p-3 leading-relaxed">
@@ -293,17 +328,20 @@ function FooterNote() {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Soroban tx construction — stellar-sdk passed in as an arg so it can be
-// dynamically imported by the caller (keeps it out of the initial bundle).
-// ────────────────────────────────────────────────────────────────────────────
+// stellar-sdk errors are often wrapped in nested objects; surface the
+// most useful message rather than dumping the whole thing.
+function prettyError(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try { return JSON.stringify(e); } catch { return String(e); }
+}
+
+// ─── Soroban tx construction ──────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StellarSdkMod = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FreighterMod = any;
-
-const FALLBACK_SIMULATE_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA72LO";
 
 function bytesToScVal(StellarSdk: StellarSdkMod, bytes: Uint8Array) {
   return StellarSdk.xdr.ScVal.scvBytes(Buffer.from(bytes));
@@ -319,7 +357,11 @@ async function simulateVerifyProof(
   try {
     account = await server.getAccount(sourcePubKey);
   } catch {
-    account = new StellarSdk.Account(FALLBACK_SIMULATE_SOURCE, "0");
+    // Account doesn't exist on testnet (e.g. user hasn't funded their
+    // wallet, or we generated a throwaway key for simulation). Use a
+    // synthetic Account — only requires the strkey to be syntactically
+    // valid, which Keypair.random().publicKey() guarantees.
+    account = new StellarSdk.Account(sourcePubKey, "0");
   }
   const contract = new StellarSdk.Contract(CONTRACTS.oneproofVerifier);
   const tx = new StellarSdk.TransactionBuilder(account, {

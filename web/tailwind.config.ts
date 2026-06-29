@@ -32,12 +32,13 @@ const config: Config = {
         // §1 type scale, bumped to editorial / viewport-relative for the
         // full-bleed layout. The brand calls for display type that "does
         // the work" — these are now genuinely large.
-        // V3 — dialed back so a 1920px screen doesn't get 350px tall letters.
-        // 11vw at 1920px = ~211px (was 345px); reads as "huge headline"
-        // without breaking layout or feeling like a billboard.
-        "display-hero":    ["clamp(2.75rem, 11vw, 10rem)", { lineHeight: "0.9",  letterSpacing: "-0.025em" }],
-        "display-section": ["clamp(2rem, 5vw, 4.5rem)",    { lineHeight: "0.98", letterSpacing: "-0.018em" }],
-        "display-stat":    ["clamp(2rem, 5.5vw, 5rem)",    { lineHeight: "0.95", letterSpacing: "-0.02em" }],
+        // V4 — pulled back further. 11vw was still reading as a billboard
+        // on wide screens (200px+ letters). 7vw caps at ~134px on a 1920px
+        // monitor — reads as a confident magazine cover, not a banner.
+        // Sections and stats come down proportionally.
+        "display-hero":    ["clamp(2.25rem, 7vw, 7rem)",   { lineHeight: "0.92", letterSpacing: "-0.022em" }],
+        "display-section": ["clamp(1.75rem, 4vw, 3.5rem)", { lineHeight: "1.0",  letterSpacing: "-0.015em" }],
+        "display-stat":    ["clamp(1.75rem, 4.5vw, 4rem)", { lineHeight: "0.98", letterSpacing: "-0.018em" }],
         "body":            ["1.125rem",                   { lineHeight: "1.65" }],
         "label":           ["0.8125rem",                  { letterSpacing: "0.08em" }],
       },
