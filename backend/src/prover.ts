@@ -14,6 +14,7 @@ import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 
 const exec = promisify(execFile);
 
@@ -202,10 +203,6 @@ function deriveSecretFromNickname(nick: string): string {
   // reduced mod the BN254 field. Since BN254 prime is ~2^254, taking the
   // sha256 (256 bits) and dropping the top 2 bits suffices to land in-field.
   const enc = new TextEncoder().encode(nick || "anon");
-  // We can't use SubtleCrypto from node:crypto without the webcrypto shim
-  // in pure ESM contexts; use the node module's hash() helper directly.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createHash } = require("node:crypto") as typeof import("node:crypto");
   const digest = createHash("sha256").update(enc).digest();
   // Mask the top 2 bits to guarantee < p (BN254 r).
   digest[0] &= 0x3f;
@@ -331,7 +328,5 @@ async function loadInnerKeyHash(): Promise<string> {
 }
 
 function shortHashHex(buf: Buffer): string {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createHash } = require("node:crypto") as typeof import("node:crypto");
   return createHash("sha256").update(buf).digest("hex").slice(0, 16);
 }
