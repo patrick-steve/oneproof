@@ -46,8 +46,11 @@ RUN npx tsc -p tsconfig.json
 # ─── Stage 3: runtime ─────────────────────────────────────────────────
 FROM ubuntu:24.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
+# bb shells out to jq + gzip for its bytes_and_fields output pipeline;
+# we hit "sh: jq: not found" without them. xz-utils + tar are similar
+# common deps for the toolchain.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl ca-certificates \
+      curl ca-certificates jq gzip xz-utils tar \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
