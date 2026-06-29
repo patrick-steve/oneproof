@@ -64,8 +64,23 @@ COPY companions ./companions
 EXPOSE 8080
 ENV PORT=8080 NODE_ENV=production
 
-# Non-root runtime
-RUN groupadd --system app && useradd --system --gid app --no-create-home app && chown -R app:app /app
+# Non-root runtime, WITH a home dir so nargo can write its git-cache lock
+# file. Nargo touches ~/.nargo even when the circuit has no git deps; if
+# HOME is empty or unwritable it crashes with "Failed to lock git
+# dependencies cache: Permission denied". /home/app is empty by default
+# but writable, which is all nargo needs.
+RUN groupadd --system app \
+    && useradd --system --gid app --home-dir /home/app --create-home app \
+    && chown -R app:app /app /home/app
+ENV HOME=/home/app
+
 USER app
+
+# Pre-warm nargo's git cache by resolving the aggregator's git dep
+# (bb_proof_verification @ v0.87.0). Done as the app user so the cache
+# directory and contents are owned by it. `nargo info` resolves deps
+# without compiling, then exits. Errors here are non-fatal — if pre-warm
+# fails, nargo will download at first runtime request, just slower.
+RUN cd /app/circuits/aggregator && (nargo info 2>&1 | tail -3) || true
 
 CMD ["node", "dist/server.js"]
