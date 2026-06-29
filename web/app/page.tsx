@@ -90,30 +90,35 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ─── 01 · THE WALL ─ text + WallViz side-by-side ─────────────── */}
+      {/* ─── 01 · THE PROBLEM ─ text + WallViz side-by-side ─────────── */}
       <Section
-        id="wall"
+        id="problem"
         n="01"
-        title="the wall"
-        lead="Without aggregation, every proof is its own transaction. The cost grows linearly. That's the wall private apps stall against on every chain."
+        title="the problem"
+        lead="Verifying one zero-knowledge proof on Stellar is cheap. Verifying a thousand of them costs a thousand times more. On-chain cost grows in lockstep with usage, and that's what stops privacy apps from scaling past tiny user counts."
       >
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-10 lg:gap-14">
           <div className="space-y-5 max-w-prose">
             <p className="text-body text-mute leading-relaxed">
-              Stellar Protocol 25 and 26 shipped the primitives that make a
-              single proof cheap to verify: BN254 host functions for pairings,
-              MSM for batched scalar multiplication. Those are real wins.
+              Every private operation, a transfer, a vote, a trade, needs its
+              own proof verified on-chain. <span className="text-paper">One
+              proof, one transaction, one fee.</span> If a thousand users transact
+              privately, the chain does the same verification work a thousand
+              times. The fee bill grows in lockstep.
             </p>
             <p className="text-body text-mute leading-relaxed">
-              But cheap-per-proof doesn&apos;t change the slope. A thousand
-              private transfers means a thousand verifies, a thousand
-              transactions, a thousand fees. <span className="text-paper">Linear
-              cost in N is the wall.</span>
+              Stellar&apos;s recent protocol upgrades made each individual proof
+              cheap to verify, fast pairing math, batched scalar multiplication,
+              optimized verifier code. That&apos;s real progress. But none of it
+              changes the slope. A cheaper line that still goes up is still a
+              line that goes up.
             </p>
             <p className="text-body text-mute leading-relaxed">
-              Aggregation flattens the slope, because the chain verifies one
-              outer proof instead of N inner ones. That&apos;s the whole
-              project, in one sentence.
+              <span className="text-paper">Aggregation flattens the line.</span>{" "}
+              We take N proofs, prove their validity off-chain inside one
+              outer proof, and the chain only verifies that single outer proof.
+              The on-chain cost is the same whether N is 4 or 4,000. That&apos;s
+              the entire OneProof claim, in one sentence.
             </p>
           </div>
           <div>
