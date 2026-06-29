@@ -1,0 +1,59 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    name: backend · vitest
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: install
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+      - name: tsc
+        working-directory: backend
+        run: npx tsc -p tsconfig.json --noEmit
+      - name: vitest
+        working-directory: backend
+        run: npm test
+
+  frontend-build:
+    name: web · next build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - name: install
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+      - name: tsc
+        working-directory: web
+        run: npx tsc --noEmit
+      - name: build
+        working-directory: web
+        run: npx next build
+
+  contract-build:
+    name: contracts · wasm32v1-none
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: install rust + wasm target
+        run: |
+          rustup target add wasm32v1-none
+      - name: build oneproof_pool
+        working-directory: contracts/oneproof_pool
+        run: cargo build --target wasm32v1-none --release

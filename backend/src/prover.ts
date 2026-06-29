@@ -322,7 +322,7 @@ const DEMO_NICK   = "anon";
 const DEMO_SECRET = "7";
 const DEMO_BLINDING = "42";
 
-function deriveSecretFromNickname(nick: string): string {
+export function deriveSecretFromNickname(nick: string): string {
   const n = nick || DEMO_NICK;
   if (n === DEMO_NICK) return DEMO_SECRET;
   // Deterministic SHA-256 of the nickname → big-endian integer → mod r.
@@ -334,7 +334,7 @@ function deriveSecretFromNickname(nick: string): string {
   return (x % BN254_R).toString();
 }
 
-function deriveBlindingFromNickname(nick: string): string {
+export function deriveBlindingFromNickname(nick: string): string {
   const n = nick || DEMO_NICK;
   if (n === DEMO_NICK) return DEMO_BLINDING;
   // Distinct domain separation so blinding and secret can't collide
@@ -376,7 +376,7 @@ async function deriveInputsViaCircuit(
   }
 }
 
-function parseDerivedStdout(stdout: string): DerivedInputs {
+export function parseDerivedStdout(stdout: string): DerivedInputs {
   const lines = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
   const startIdx = lines.findIndex((l) => l === "OP_DERIVED_START");
   const endIdx   = lines.findIndex((l) => l === "OP_DERIVED_END");
@@ -408,7 +408,7 @@ function parseDerivedStdout(stdout: string): DerivedInputs {
 // above. Every call produces a fresh, input-specific (root, nullifier,
 // pathElements) tuple.)
 
-function buildInnerProverToml(args: {
+export function buildInnerProverToml(args: {
   root: string; nullifier: string;
   secret: string; amount: string; blinding: string;
   pathElements: string[];

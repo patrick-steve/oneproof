@@ -166,10 +166,36 @@ export default function Page() {
         <PipelinePlayer />
       </section>
 
-      {/* ─── 04 · WHAT THIS UNLOCKS ─ use cases that become viable ─── */}
+      {/* ─── 04 · WHAT'S NOVEL ─ honest positioning ──────────────────── */}
+      <Section
+        id="novel"
+        n="04"
+        title="what's novel here"
+        lead="The cryptography isn't new. The application of it to Stellar is. Three things that, to our knowledge, didn't exist before this build."
+      >
+        <div className="space-y-8 md:space-y-10 mt-2">
+          <Novelty
+            n="i"
+            title="first recursive UltraHonk on Stellar"
+            body="Recursive proof aggregation has shipped on Ethereum (Aztec, Polygon Hermez). It hadn't been deployed on Stellar before this — the BN254 host functions Stellar shipped in Protocol 25/26 made it possible, and we're the first project to actually use them for recursive Honk verification. The K=4 aggregator contract is at the address above; the bytes match the proof we generated locally."
+          />
+          <Novelty
+            n="ii"
+            title="first Soroban privacy pool with batch settlement"
+            body="Privacy pools on EVM chains settle one withdrawal per transaction (Tornado Cash, Privacy Pools). Our oneproof_pool contract verifies an aggregated proof AND dispatches N transfers atomically in one Soroban invocation — only possible because Soroban can hold native assets and run arbitrary verifier logic in the same execution context. EVM would need a verifier call followed by a separate multicall."
+          />
+          <Novelty
+            n="iii"
+            title="first measured constant-cost ZK primitive on a Stellar mainnet candidate"
+            body="Plenty of papers project constant-cost ZK. We measured it: 136K stroops per tx, flat as N grows from 4 to (projected) 1024. All numbers linkable to stellar.expert pages, all contract IDs pinned in bench/results.json, all proofs reproducible from the committed circuits."
+          />
+        </div>
+      </Section>
+
+      {/* ─── 05 · WHAT THIS UNLOCKS ─ use cases that become viable ─── */}
       <Section
         id="unlocks"
-        n="04"
+        n="05"
         title="what this unlocks"
         lead="Fixed on-chain cost changes what's actually buildable. Things that were too expensive to ship on a per-user basis become viable the moment the on-chain bill stops growing with the user count. Six concrete examples."
       >
@@ -219,10 +245,10 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 05 · THE NUMBERS ─ stats + savings + live ──────────────── */}
+      {/* ─── 06 · THE NUMBERS ─ stats + savings + live ──────────────── */}
       <Section
         id="numbers"
-        n="05"
+        n="06"
         title="the numbers"
         lead="Measured on Stellar testnet. Real transaction hashes, real fees, every value linkable to a stellar.expert page."
       >
@@ -256,10 +282,10 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 06 · WHAT THIS IS / ISN'T ─────────────────────────────── */}
+      {/* ─── 07 · WHAT THIS IS / ISN'T ─────────────────────────────── */}
       <Section
         id="caveats"
-        n="06"
+        n="07"
         title="what this is, and isn't"
         lead="Plain about what we built and what we didn't. The point of a demo is to show what works, not to overpromise."
       >
@@ -279,10 +305,10 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 07 · RUN IT ────────────────────────────────────────────── */}
+      {/* ─── 08 · RUN IT ────────────────────────────────────────────── */}
       <Section
         id="run"
-        n="07"
+        n="08"
         title="run it"
         lead="Five commands, testnet end to end. Run the same proofs we ran, deploy the same contracts, see the same numbers."
       >
@@ -423,6 +449,21 @@ function Section({
 
 function Mono({ children }: { children: ReactNode }) {
   return <span className="font-mono text-paper">{children}</span>;
+}
+
+// Editorial-style row for the "what's novel here" section. Same shape
+// as Unlock but with a longer-form body and no metric callout — these
+// are claims about what's new, not numeric projections.
+function Novelty({ n, title, body }: { n: string; title: string; body: string }) {
+  return (
+    <div className="space-y-3 max-w-prose">
+      <div className="flex items-baseline gap-3">
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-mute">{n}</span>
+        <h3 className="font-display font-medium text-paper text-xl md:text-2xl">{title}</h3>
+      </div>
+      <p className="text-body text-mute leading-relaxed">{body}</p>
+    </div>
+  );
 }
 
 // Editorial-style use-case row for the "what this unlocks" section.
