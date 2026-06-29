@@ -56,12 +56,20 @@ export default function Page() {
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
               <a
-                href={`https://stellar.expert/explorer/testnet/contract/${CONTRACTS.oneproof_verifier}`}
+                href="https://your-video-link-goes-here"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center font-mono text-sm bg-signal text-ink px-5 py-3 hover:bg-signal/90 transition-colors"
               >
-                see the contract on-chain →
+                ▶ watch 90-second demo
+              </a>
+              <a
+                href={`https://stellar.expert/explorer/testnet/contract/${CONTRACTS.oneproof_verifier}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-sm text-mute hover:text-paper"
+              >
+                see the contract on-chain ↗
               </a>
               <a
                 href={`https://stellar.expert/explorer/testnet/tx/${RECURSIVE_TX}`}
@@ -312,12 +320,16 @@ cd web && pnpm dev`}
 // ─── savings table — concrete projection from measured numbers ────────
 function SavingsTable() {
   const rows = [
-    { n: 1,    label: "single proof" },
-    { n: 4,    label: "measured today" },
-    { n: 16,   label: "small batch" },
-    { n: 64,   label: "moderate" },
-    { n: 256,  label: "high-throughput app" },
-    { n: 1024, label: "rollup-scale" },
+    { n: 1,    label: "single proof",         agg: RECURSIVE_AT_4 },
+    { n: 4,    label: "measured today",       agg: RECURSIVE_AT_4 },
+    // K=16: circuit committed (circuits/aggregator_k16/), proof bytes
+    // projected from K=4 proof size + 32 bytes × extra public inputs;
+    // on-chain fee projected via Stellar Soroban fee formula.
+    // See bench/k16-projection.json.
+    { n: 16,   label: "small batch · K=16 projected", agg: 138_500 },
+    { n: 64,   label: "moderate · linearly projected", agg: 138_500 },
+    { n: 256,  label: "high-throughput · projected",   agg: 138_500 },
+    { n: 1024, label: "rollup-scale · projected",      agg: 138_500 },
   ];
   return (
     <div className="border border-line bg-ink-2">
@@ -328,8 +340,8 @@ function SavingsTable() {
       <div className="font-mono text-[12px] md:text-sm">
         {rows.map((r) => {
           const naive = NAIVE_PER_TX * r.n;
-          const recursiveBeatsNaive = naive > RECURSIVE_AT_4;
-          const factor = naive / RECURSIVE_AT_4;
+          const recursiveBeatsNaive = naive > r.agg;
+          const factor = naive / r.agg;
           return (
             <div
               key={r.n}
@@ -345,7 +357,7 @@ function SavingsTable() {
               >
                 {recursiveBeatsNaive
                   ? `${factor.toFixed(factor > 100 ? 0 : 1)}× cheaper`
-                  : `loses by ${(RECURSIVE_AT_4 / naive).toFixed(1)}×`}
+                  : `loses by ${(r.agg / naive).toFixed(1)}×`}
               </span>
             </div>
           );

@@ -84,27 +84,34 @@ export default function VerifyClient() {
 
 function Header({ status, count }: { status: FeedStatus; count: number }) {
   const label =
-    status === "live" ? "live · stellar testnet" :
-    status === "fallback" ? "live feed offline · showing committed measurements" :
+    status === "live"     ? "live · submissions through this site" :
+    status === "fallback" ? "indexer offline · showing committed bench measurements" :
                             "connecting…";
   const pulseOn = status === "live";
   return (
-    <div className="flex items-baseline justify-between gap-4 flex-wrap">
-      <div className="space-y-1">
-        <div className="font-mono text-[12px] uppercase tracking-[0.08em] text-mute flex items-center gap-2">
-          <span
-            aria-hidden
-            className={`inline-block w-1.5 h-1.5 rounded-full ${pulseOn ? "bg-signal animate-pulse" : "bg-mute"}`}
-          />
-          {label}
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <div className="font-mono text-[12px] uppercase tracking-[0.08em] text-mute flex items-center gap-2">
+            <span
+              aria-hidden
+              className={`inline-block w-1.5 h-1.5 rounded-full ${pulseOn ? "bg-signal animate-pulse" : "bg-mute"}`}
+            />
+            {label}
+          </div>
+          <h1 className="font-mono text-paper text-xl">
+            {count.toLocaleString()} <span className="text-mute text-base">submits captured</span>
+          </h1>
         </div>
-        <h1 className="font-mono text-paper text-xl">
-          {count.toLocaleString()} <span className="text-mute text-base">recent verifications</span>
-        </h1>
+        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-mute">
+          polling every 20s
+        </div>
       </div>
-      <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-mute">
-        polling every 20s
-      </div>
+      <p className="text-[11px] text-mute font-mono leading-relaxed max-w-3xl border border-line p-3 bg-ink-2">
+        This list shows verifies submitted through this site (the demo at <span className="text-paper">/console</span>).
+        It&apos;s a thin indexer kept in our backend, persisted across restarts, NOT a full chain feed. For the
+        canonical on-chain view, see <a className="text-signal hover:text-paper" href={`https://stellar.expert/explorer/testnet/contract/${CONTRACTS.oneproofVerifier}`} target="_blank" rel="noopener">stellar.expert</a>.
+      </p>
     </div>
   );
 }

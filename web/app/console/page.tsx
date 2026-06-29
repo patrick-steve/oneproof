@@ -17,7 +17,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  aggregateSolo, backendHealthzTimed, joinPool, proveInner, recordActivity,
+  aggregateSoloStreaming, backendHealthzTimed, joinPool, proveInner, recordActivity,
   type InnerProofWire, type PoolEvent,
 } from "@/lib/backend";
 import { CONTRACTS, NETWORK, txUrl } from "@/lib/stellar";
@@ -55,6 +55,10 @@ export default function ConsolePage() {
   const [outerProofB64, setOuterProofB64] = useState<string | null>(null);
   const [outerPublicInputsB64, setOuterPublicInputsB64] = useState<string | null>(null);
   const [aggregatingMs, setAggregatingMs] = useState<number | null>(null);
+  // Real bb stderr lines streamed from the backend during live aggregator
+  // proving. Keeps last ~10 lines so the UI shows actual proving phases,
+  // not a fake timer-driven rotation.
+  const [aggStderr, setAggStderr] = useState<string[]>([]);
   const [submitTx, setSubmitTx] = useState<string | null>(null);
   const [submitFee, setSubmitFee] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,10 +115,15 @@ export default function ConsolePage() {
   async function runAggregate() {
     if (!innerProof) return;
     setError(null);
+    setAggStderr([]);
     if (mode === "solo") {
       setStage("aggregating");
       try {
-        const r = await aggregateSolo(innerProof);
+        const r = await aggregateSoloStreaming(innerProof, (evt) => {
+          if (evt.type === "stderr") {
+            setAggStderr((prev) => [...prev.slice(-9), evt.line]);
+          }
+        });
         setOuterProofB64(r.proofBytesB64);
         setOuterPublicInputsB64(r.publicInputsBytesB64);
         setAggregatingMs(r.aggregatingMs);
@@ -282,7 +291,20 @@ export default function ConsolePage() {
           </Step>
 
           <Step n="04" title="aggregating (backend · 4 → 1)" current={stage === "aggregating"} done={!!outerProofB64}>
-            {stage === "aggregating" && <Spinner label={aggPhase} />}
+            {stage === "aggregating" && (
+              <>
+                <Spinner label={aggPhase} />
+                {aggStderr.length > 0 && (
+                  <div className="mt-3 border border-line bg-ink-2 p-3 max-h-32 overflow-hidden font-mono text-[10px] text-mute leading-tight space-y-0.5">
+                    {aggStderr.map((line, i) => (
+                      <div key={i} className={i === aggStderr.length - 1 ? "text-signal" : ""}>
+                        <span className="text-line mr-2">bb</span>{line}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             {outerProofB64 && (
               <div className="text-[11px] text-mute space-y-1">
                 <Kv k="outer proof"   v={<span className="text-paper">{Math.round(outerProofB64.length * 0.75).toLocaleString()} bytes</span>} />

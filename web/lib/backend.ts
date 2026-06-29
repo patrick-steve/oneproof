@@ -92,6 +92,63 @@ export async function aggregateSolo(userProof: InnerProofWire): Promise<ProveAgg
   return r.json() as Promise<ProveAggregateResponse>;
 }
 
+// SSE-mode variant: forwards real bb stderr lines via onStderr() so the
+// UI can show actual proving phases (KZG accumulator init, polynomial
+// commitments, FFT, etc.) instead of a timer-driven fake rotation.
+export type AggregateStreamEvent =
+  | { type: "stderr"; line: string }
+  | { type: "done"; proofBytesB64: string; publicInputsBytesB64: string; aggregatingMs: number; cached: boolean }
+  | { type: "error"; error: string; aggregatingMs?: number };
+
+export async function aggregateSoloStreaming(
+  userProof: InnerProofWire,
+  onEvent: (e: AggregateStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<ProveAggregateResponse & { cached: boolean }> {
+  assertBaseConfigured();
+  const resp = await fetch(`${BASE}/api/aggregate`, {
+    method:  "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body:    JSON.stringify({ mode: "solo", userProof }),
+    signal,
+  });
+  if (!resp.ok || !resp.body) {
+    const txt = await resp.text().catch(() => "");
+    throw new BackendError(`aggregate (sse) failed (${resp.status}): ${txt}`, resp.status);
+  }
+  const reader = resp.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value ?? "";
+    let idx: number;
+    while ((idx = buffer.indexOf("\n\n")) >= 0) {
+      const frame = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!dataLine) continue;
+      let evt: AggregateStreamEvent;
+      try {
+        evt = JSON.parse(dataLine.slice(5).trim()) as AggregateStreamEvent;
+      } catch { continue; }
+      onEvent(evt);
+      if (evt.type === "done") {
+        return {
+          proofBytesB64:        evt.proofBytesB64,
+          publicInputsBytesB64: evt.publicInputsBytesB64,
+          aggregatingMs:        evt.aggregatingMs,
+          cached:               evt.cached,
+        };
+      }
+      if (evt.type === "error") {
+        throw new BackendError(evt.error, 500);
+      }
+    }
+  }
+  throw new BackendError("aggregate stream ended without a done event", 0);
+}
+
 // ─── Activity indexer ─────────────────────────────────────────────────
 
 export interface ActivityRecord {

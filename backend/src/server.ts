@@ -11,10 +11,10 @@
 
 import express from "express";
 import cors from "cors";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, writeFile as writeFileFs } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { proveInner, proveAggregate, type InnerProofResult, type OuterProofResult } from "./prover.js";
+import { proveInner, proveAggregate, proveAggregateStreaming, type InnerProofResult, type OuterProofResult } from "./prover.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "*";
@@ -81,36 +81,78 @@ function aggregateCacheKey(inners: InnerProofResult[]): string {
 
 app.post("/api/aggregate", async (req, res) => {
   const t0 = Date.now();
+  // Detect SSE-mode request: client sets Accept: text/event-stream when
+  // it wants real-time bb stderr forwarded as events. Otherwise we
+  // respond with JSON as before.
+  const wantsSse = String(req.headers.accept ?? "").includes("text/event-stream");
+
   try {
     const { mode, userProof, others } = req.body ?? {};
     const inners = await assembleFour(mode, userProof, others);
+    const cacheKey = mode === "solo" ? aggregateCacheKey(inners) : null;
 
-    // Cache lookup (solo mode only; pool combinations are unique per user).
-    if (mode === "solo") {
-      const key = aggregateCacheKey(inners);
-      const hit = aggregateCache.get(key);
+    // ─── Cache hit fast path (same for both response modes) ─────────
+    if (cacheKey) {
+      const hit = aggregateCache.get(cacheKey);
       if (hit) {
-        return res.json({
+        const payload = {
           proofBytesB64:        Buffer.from(hit.proofBytes).toString("base64"),
           publicInputsBytesB64: Buffer.from(hit.publicInputsBytes).toString("base64"),
           aggregatingMs:        Date.now() - t0,
           cached:               true,
+        };
+        if (wantsSse) {
+          openSse(res);
+          sendSse(res, { type: "stderr", line: "[cache] hit · returning prebaked outer proof" });
+          sendSse(res, { type: "done", ...payload });
+          res.end();
+          return;
+        }
+        return res.json(payload);
+      }
+    }
+
+    // ─── Cache miss: real proving path ─────────────────────────────
+    let outer: OuterProofResult;
+    if (wantsSse) {
+      openSse(res);
+      sendSse(res, { type: "stderr", line: "[cache] miss · live-proving with bb" });
+      try {
+        outer = await proveAggregateStreaming(inners, (line) => {
+          sendSse(res, { type: "stderr", line });
         });
+      } catch (e) {
+        sendSse(res, { type: "error", error: errMsg(e), aggregatingMs: Date.now() - t0 });
+        res.end();
+        return;
       }
+      if (cacheKey) {
+        if (aggregateCache.size >= AGG_CACHE_MAX) {
+          const oldest = aggregateCache.keys().next().value;
+          if (oldest) aggregateCache.delete(oldest);
+        }
+        aggregateCache.set(cacheKey, outer);
+      }
+      sendSse(res, {
+        type: "done",
+        proofBytesB64:        Buffer.from(outer.proofBytes).toString("base64"),
+        publicInputsBytesB64: Buffer.from(outer.publicInputsBytes).toString("base64"),
+        aggregatingMs:        Date.now() - t0,
+        cached:               false,
+      });
+      res.end();
+      return;
     }
 
-    const outer = await proveAggregate(inners);
-
-    if (mode === "solo") {
-      const key = aggregateCacheKey(inners);
-      // LRU-ish: drop oldest if at cap.
+    // Non-SSE: legacy JSON response
+    outer = await proveAggregate(inners);
+    if (cacheKey) {
       if (aggregateCache.size >= AGG_CACHE_MAX) {
-        const firstKey = aggregateCache.keys().next().value;
-        if (firstKey) aggregateCache.delete(firstKey);
+        const oldest = aggregateCache.keys().next().value;
+        if (oldest) aggregateCache.delete(oldest);
       }
-      aggregateCache.set(key, outer);
+      aggregateCache.set(cacheKey, outer);
     }
-
     res.json({
       proofBytesB64:        Buffer.from(outer.proofBytes).toString("base64"),
       publicInputsBytesB64: Buffer.from(outer.publicInputsBytes).toString("base64"),
@@ -119,9 +161,26 @@ app.post("/api/aggregate", async (req, res) => {
     });
   } catch (e) {
     console.error("[aggregate] failed:", e);
-    res.status(500).json({ error: errMsg(e), aggregatingMs: Date.now() - t0 });
+    if (wantsSse && !res.headersSent) {
+      openSse(res);
+      sendSse(res, { type: "error", error: errMsg(e), aggregatingMs: Date.now() - t0 });
+      res.end();
+    } else {
+      res.status(500).json({ error: errMsg(e), aggregatingMs: Date.now() - t0 });
+    }
   }
 });
+
+function openSse(res: express.Response) {
+  res.setHeader("Content-Type",  "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection",    "keep-alive");
+  res.flushHeaders?.();
+}
+
+function sendSse(res: express.Response, payload: unknown) {
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
 
 // ─── /api/activity ─────────────────────────────────────────────────────
 // Tiny in-memory indexer. Frontend POSTs every successful submit; the
@@ -143,7 +202,36 @@ interface ActivityRecord {
 }
 
 const ACTIVITY_MAX = 100;
+const ACTIVITY_LOG_FILE = process.env.ACTIVITY_LOG_FILE ?? "/home/app/activity-log.json";
 const activityLog: ActivityRecord[] = [];
+
+// Best-effort: load any persisted log on boot. Activity records survive
+// container restarts (Fly's machine disk persists across auto-stop) but
+// will reset if the image is rebuilt (rare) or if the writable dir is
+// blown away. Static bench fallback in the frontend keeps the page useful
+// even if the log is empty.
+(async () => {
+  try {
+    const raw = await readFile(ACTIVITY_LOG_FILE, "utf8");
+    const parsed = JSON.parse(raw) as { records?: ActivityRecord[] };
+    if (Array.isArray(parsed.records)) {
+      for (const r of parsed.records.slice(0, ACTIVITY_MAX)) activityLog.push(r);
+      console.log(`[activity] loaded ${activityLog.length} records from ${ACTIVITY_LOG_FILE}`);
+    }
+  } catch {
+    console.log(`[activity] no persisted log at ${ACTIVITY_LOG_FILE}, starting empty`);
+  }
+})();
+
+async function persistActivityLog(): Promise<void> {
+  // Fire-and-forget persist after each write. The log is small (~100 records
+  // × ~200 bytes ~= 20 KB) so we just rewrite the whole file.
+  try {
+    await writeFileFs(ACTIVITY_LOG_FILE, JSON.stringify({ records: activityLog }), "utf8");
+  } catch (e) {
+    console.warn(`[activity] persist failed:`, e instanceof Error ? e.message : e);
+  }
+}
 
 app.post("/api/activity/record", (req, res) => {
   const b = req.body ?? {};
@@ -167,6 +255,7 @@ app.post("/api/activity/record", (req, res) => {
   };
   activityLog.unshift(rec);
   if (activityLog.length > ACTIVITY_MAX) activityLog.length = ACTIVITY_MAX;
+  void persistActivityLog();
   res.json({ ok: true, deduped: false, count: activityLog.length });
 });
 

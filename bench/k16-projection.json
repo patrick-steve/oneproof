@@ -1,0 +1,20 @@
+{
+  "k": 16,
+  "measurement_status": "circuit_built_proof_projected",
+  "outerProofBytes_projected": 15616,
+  "publicInputBytes_projected": 256,
+  "publicInputCount": 32,
+  "method": "projected from K=4 baseline using Stellar's published Soroban fee structure",
+  "formula": "outer_proof_bytes_K = base_proof_size + 32 * public_input_count; on_chain_fee = base_verify_fee + (proof_bytes / 1024) * fee_per_kb + public_input_count * fee_per_pi",
+  "baseline_k4": {
+    "outerProofBytes": 14592,
+    "publicInputBytes": 64,
+    "publicInputCount": 8,
+    "onChainFeeStroops": 136009
+  },
+  "projected_k16_onchain_fee_stroops": 138500,
+  "savings_vs_naive_at_n16": "16 inner txs * 30556 stroops = 488896 stroops naive; 138500 aggregated = 3.5x cheaper",
+  "circuitPackage": "aggregator_k16",
+  "circuitSourceCommitted": true,
+  "fullProofMeasurementBlockedBy": "bb prove for K=16 exceeds 10-minute compute budget on hackathon environment; would require dedicated machine ~1-2 hours"
+}

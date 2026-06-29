@@ -2,6 +2,10 @@
 
 > One proof to rule them all. Constant-cost ZK on Stellar.
 
+**▶ [90-second walkthrough](https://your-video-link-goes-here)** — start here if you've got two minutes.  
+(See `VIDEO.md` for the script and recording instructions; replace this URL after recording.)
+
+
 OneProof makes the on-chain cost of a private app independent of how many
 private operations it processes, by aggregating proofs off-chain into a
 single proof the chain verifies once.

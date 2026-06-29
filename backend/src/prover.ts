@@ -9,7 +9,7 @@
 // but bb itself is the only path to UltraHonk proofs. Shell-out is the
 // honest interface.
 
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -139,6 +139,106 @@ export async function proveInner(input: InnerInputs): Promise<InnerProofResult> 
 }
 
 // ─── Outer (aggregator) proof ─────────────────────────────────────────
+
+/** Streaming variant of proveAggregate: spawns bb prove via `spawn`
+ * (not buffered exec) and forwards each stderr line to `onStderr`. Used
+ * by /api/aggregate when the request is in SSE mode, so the frontend
+ * can show REAL bb proving phases as they happen instead of a fake
+ * timer-driven progress rotation. */
+export async function proveAggregateStreaming(
+  inners: InnerProofResult[],
+  onStderr: (line: string) => void,
+): Promise<OuterProofResult> {
+  if (inners.length !== 4) {
+    throw new Error(`aggregator expects exactly 4 inner proofs, got ${inners.length}`);
+  }
+  const work = await mkdtemp(join(tmpdir(), "op-agg-"));
+  try {
+    const vkFields = await loadInnerVkFields();
+    const keyHash  = await loadInnerKeyHash();
+    const flatPublicInputs: string[] = [];
+    for (const i of inners) {
+      if (i.publicInputsFields.length !== 2) {
+        throw new Error(`inner publicInputsFields must be length 2, got ${i.publicInputsFields.length}`);
+      }
+      flatPublicInputs.push(...i.publicInputsFields);
+    }
+
+    const aggToml = buildAggregatorProverToml({
+      verificationKey: vkFields,
+      keyHash,
+      proofs: inners.map((i) => i.proofFields),
+      publicInputs: flatPublicInputs,
+    });
+    const aggTomlPath = join(work, "Prover.toml");
+    await writeFile(aggTomlPath, aggToml, "utf8");
+    const pkgDir = join(CIRCUITS_DIR, AGG_PKG);
+
+    // nargo execute (witness) — fast (~1-2s), use exec
+    onStderr("nargo execute: building witness…");
+    await exec("nargo", [
+      "execute", "--package", AGG_PKG,
+      "--prover-name", aggTomlPath,
+      AGG_PKG,
+    ], { cwd: pkgDir, maxBuffer: 64 * 1024 * 1024, timeout: 300_000 });
+    onStderr("nargo execute: ✓ witness solved");
+
+    const outDir = join(work, "proof-out");
+    await mkdir(outDir, { recursive: true });
+
+    // bb prove — slow, stream stderr line by line
+    onStderr("bb prove: starting…");
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("bb", [
+        "prove",
+        "--scheme", "ultra_honk",
+        "--honk_recursion", "1",
+        "--init_kzg_accumulator",
+        "--output_format", "bytes_and_fields",
+        "-b", join(pkgDir, "target", `${AGG_PKG}.json`),
+        "-w", join(pkgDir, "target", `${AGG_PKG}.gz`),
+        "-o", outDir,
+      ], { stdio: ["ignore", "pipe", "pipe"] });
+
+      let stderrBuf = "";
+      child.stderr.on("data", (chunk: Buffer) => {
+        stderrBuf += chunk.toString("utf8");
+        let idx: number;
+        while ((idx = stderrBuf.indexOf("\n")) >= 0) {
+          const line = stderrBuf.slice(0, idx).trim();
+          stderrBuf = stderrBuf.slice(idx + 1);
+          if (line) onStderr(line);
+        }
+      });
+      child.stdout.on("data", (chunk: Buffer) => {
+        // bb sometimes writes to stdout; forward too
+        const lines = chunk.toString("utf8").split("\n");
+        for (const l of lines) {
+          const t = l.trim();
+          if (t) onStderr(t);
+        }
+      });
+
+      child.on("close", (code) => {
+        if (stderrBuf.trim()) onStderr(stderrBuf.trim());
+        if (code === 0) resolve();
+        else reject(new Error(`bb prove exited with code ${code}`));
+      });
+      child.on("error", reject);
+    });
+
+    const [proofBytes, publicInputsBytes] = await Promise.all([
+      readFile(join(outDir, "proof")),
+      readFile(join(outDir, "public_inputs")),
+    ]);
+    return {
+      proofBytes:        new Uint8Array(proofBytes),
+      publicInputsBytes: new Uint8Array(publicInputsBytes),
+    };
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
 
 /** Aggregate 4 inner proofs into a single outer proof. All 4 inners
  * MUST come from the same inner_transfer VK (which is constant for our
@@ -355,13 +455,15 @@ async function loadInnerVkFields(): Promise<string[]> {
   return innerVkFieldsCache!;
 }
 
-// key_hash is the first element of vk_fields.json in bb v0.87.0's
-// recursive-friendly VK format. This convention is fragile; if bb's VK
-// layout changes, this constant lookup must change with it.
+// key_hash matches the value used in the committed K=4 aggregator
+// Prover.toml ("0x00"). The original code grabbed vk[0] thinking that
+// was the key hash, but vk[0] is actually a size field (e.g. 0x8000);
+// passing it as key_hash produced proofs that would have failed verify.
+// bb internally computes the recursive verifier's key commitment; the
+// key_hash field in the Prover.toml is a separately-supplied marker
+// that, empirically, just needs to be 0x00 for our setup.
 async function loadInnerKeyHash(): Promise<string> {
-  const vk = await loadInnerVkFields();
-  if (!vk.length) throw new Error("inner vk_fields.json is empty");
-  return vk[0]!;
+  return "0x00";
 }
 
 function shortHashHex(buf: Buffer): string {
