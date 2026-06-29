@@ -9,9 +9,9 @@ primary_region = "iad"
   dockerfile = "Dockerfile"
 
 # bb is built with rayon (Rust thread pool); RAYON_NUM_THREADS is the
-# lever that actually controls FFT + MSM parallelism. The CLI doesn't
-# expose --num_threads on `bb prove` in 0.87.0, but the env var works.
-# Set to 4 to match the performance-2x VM's 2 dedicated cores × hyperthread.
+# lever that controls FFT + MSM parallelism. The CLI doesn't expose
+# --num_threads on `bb prove` in 0.87.0, but the env var works. Set to
+# 4 to use all 4 vCPUs on shared-cpu-4x.
 [env]
   RAYON_NUM_THREADS = "4"
 
@@ -38,10 +38,10 @@ primary_region = "iad"
   soft_limit = 4
 
 # Resources: bb's aggregator proof peaked at 3.84 GB; 8 GB has headroom.
-# performance-2x gives 2 DEDICATED cores (vs shared-cpu's contended
-# slices), which combined with bb --num_threads 4 cuts the aggregator
-# from ~62s to ~20-25s. ~$0.04/hr active, auto-stop keeps the bill
-# small (~$5-10/mo for typical demo traffic).
+# shared-cpu-4x (4 vCPUs) outperforms performance-2x (2 dedicated cores)
+# for bb's aggregator workload — measured 62s vs 128s. bb saturates
+# core count over per-core throughput, so more cores wins. RAYON_NUM_THREADS=4
+# (above) uses all 4. Aggregator first call ~50-60s, cached calls ~95ms.
 [[vm]]
-  size = "performance-2x"
+  size = "shared-cpu-4x"
   memory = "8gb"
