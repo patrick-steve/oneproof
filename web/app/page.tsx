@@ -151,10 +151,63 @@ export default function Page() {
         <PipelinePlayer />
       </section>
 
-      {/* ─── 04 · THE NUMBERS ─ stats + savings + live ──────────────── */}
+      {/* ─── 04 · WHAT THIS UNLOCKS ─ use cases that become viable ─── */}
+      <Section
+        id="unlocks"
+        n="04"
+        title="what this unlocks"
+        lead="Constant on-chain cost turns ZK from 'too expensive for production traffic' into a primitive you can ship. Six applications that become viable the moment N stops mattering."
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-10 lg:gap-y-14 mt-2">
+          <Unlock
+            n="i"
+            title="private payments at scale"
+            body="Tornado-class privacy pool, Stellar-native. Hundreds of withdrawals collapse into one aggregated verification per epoch. Today's mixers settle one withdrawal per tx; this settles 1024."
+            metric={`≈ ${RECURSIVE_AT_4.toLocaleString()} stroops`}
+            metricSub="for a 1024-user batch · vs ~31M naive"
+          />
+          <Unlock
+            n="ii"
+            title="rollup-style L2 on Stellar"
+            body="Accumulate hundreds of off-chain state transitions, prove the batch off-chain, settle in one Soroban tx. Stellar gets an L2 pattern without changing the protocol. Each user pays a fraction of one verification fee."
+            metric="N · 1 verify"
+            metricSub="amortized · regardless of batch size"
+          />
+          <Unlock
+            n="iii"
+            title="anonymous voting + governance"
+            body="Aggregate thousands of ballots into one verification. Each voter's commitment is private; the aggregate proof attests they all checked out. Censorship-resistant, auditable, single-tx settlement."
+            metric="1 tx · N voters"
+            metricSub="proof of valid tally without revealing votes"
+          />
+          <Unlock
+            n="iv"
+            title="DEX with batch matching"
+            body="N matched trades verified in one aggregated proof per block. Eliminates per-trade verification cost, frustrates per-trade MEV. Settlement is one tx; price discovery happens off-chain inside the aggregator."
+            metric="O(1) on-chain"
+            metricSub="for any number of matched orders"
+          />
+          <Unlock
+            n="v"
+            title="cross-app proof composition"
+            body="The aggregator doesn't care which inner circuit produced its inputs. Stack proofs from different apps — a private payment + a DEX trade + a governance vote — into one outer proof. One settlement, many privacy domains."
+            metric="K circuits"
+            metricSub="composed into one verification"
+          />
+          <Unlock
+            n="vi"
+            title="any app paying the verification tax"
+            body="If your bottleneck is 'I verify too many proofs per second to be cheap,' aggregation is the lever. The constant in the curve is set by the outer circuit's size — fixed, regardless of how many inner proofs it eats."
+            metric="flat in N"
+            metricSub="that's the whole product"
+          />
+        </div>
+      </Section>
+
+      {/* ─── 05 · THE NUMBERS ─ stats + savings + live ──────────────── */}
       <Section
         id="numbers"
-        n="04"
+        n="05"
         title="the numbers"
         lead="Measured on Stellar testnet. Real transaction hashes, real fees, every value linkable to a stellar.expert page."
       >
@@ -188,10 +241,10 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 05 · WHAT THIS IS / ISN'T ─────────────────────────────── */}
+      {/* ─── 06 · WHAT THIS IS / ISN'T ─────────────────────────────── */}
       <Section
         id="caveats"
-        n="05"
+        n="06"
         title="what this is, and isn't"
         lead="Honesty over rhetoric. Naming the limits is what separates a demonstration from a sales deck."
       >
@@ -211,10 +264,10 @@ export default function Page() {
         </div>
       </Section>
 
-      {/* ─── 06 · RUN IT ────────────────────────────────────────────── */}
+      {/* ─── 07 · RUN IT ────────────────────────────────────────────── */}
       <Section
         id="run"
-        n="06"
+        n="07"
         title="run it"
         lead="One command per step, testnet end to end. The contract IDs are pinned; you'll get the exact same on-chain artifacts we did."
       >
@@ -351,6 +404,36 @@ function Section({
 
 function Mono({ children }: { children: ReactNode }) {
   return <span className="font-mono text-paper">{children}</span>;
+}
+
+// Editorial-style use-case row for the "what this unlocks" section.
+// Two-column on lg+: roman numeral + title + body on left, metric callout
+// on the right. No card chrome — keeps the brand's calm-instrument feel
+// instead of the SaaS-card-grid anti-pattern.
+function Unlock({
+  n, title, body, metric, metricSub,
+}: {
+  n: string; title: string; body: string; metric: string; metricSub: string;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-8 gap-y-4 items-start">
+      <div className="space-y-3">
+        <div className="flex items-baseline gap-3">
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-mute">{n}</span>
+          <h3 className="font-display font-medium text-paper text-xl md:text-2xl">{title}</h3>
+        </div>
+        <p className="text-body text-mute leading-relaxed max-w-prose-tight">
+          {body}
+        </p>
+      </div>
+      <div className="md:text-right md:min-w-[180px]">
+        <div className="font-mono text-signal text-base md:text-lg whitespace-nowrap">{metric}</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-mute mt-1">
+          {metricSub}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function BigStat({

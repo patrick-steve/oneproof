@@ -316,18 +316,12 @@ export default function ConsolePage() {
           />
 
           {stage === "done" && submitTx && (
-            <div className="pt-3 border-t border-line space-y-3">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-signal">on-chain</div>
-              <a href={txUrl(submitTx)} target="_blank" rel="noopener" className="block text-[11px] text-paper hover:text-signal break-all">
-                {submitTx}
-              </a>
-              <a href={txUrl(submitTx)} target="_blank" rel="noopener" className="inline-flex text-[12px] text-signal hover:text-paper transition-colors">
-                inspect on stellar.expert ↗
-              </a>
-              <button onClick={reset} className="text-[11px] uppercase tracking-[0.08em] text-mute hover:text-paper">
-                run again with different inputs ↻
-              </button>
-            </div>
+            <WhatJustHappened
+              submitTx={submitTx}
+              submitFee={submitFee}
+              naivePerTx={NAIVE_PER_TX}
+              onReset={reset}
+            />
           )}
         </div>
       </div>
@@ -642,6 +636,84 @@ function CostComparison({ naivePerTx, aggregatedFee, stage }: { naivePerTx: numb
           run the pipeline on the left to see your own measured numbers here.
         </p>
       )}
+    </div>
+  );
+}
+
+// Post-submit "what just happened" panel. Replaces the bare tx-hash dump
+// with a moment of recognition + tie-back to the broader value prop:
+//   - the tx hash they can verify
+//   - the savings at scale (where this pattern actually pays off)
+//   - 3 concrete applications this primitive unlocks
+//   - CTAs back to the explorer and to run again
+function WhatJustHappened({
+  submitTx, submitFee, naivePerTx, onReset,
+}: {
+  submitTx: string; submitFee: number | null; naivePerTx: number; onReset: () => void;
+}) {
+  const agg = submitFee ?? 136_009;
+  const factor64 = (naivePerTx * 64) / agg;
+  const factor1024 = (naivePerTx * 1024) / agg;
+  return (
+    <div className="pt-3 border-t border-line space-y-5">
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="text-signal text-lg leading-none">✓</span>
+        <div className="text-[12px] uppercase tracking-[0.08em] text-signal">
+          you just verified 4 zk proofs in one stellar tx
+        </div>
+      </div>
+
+      <a
+        href={txUrl(submitTx)}
+        target="_blank"
+        rel="noopener"
+        className="block text-[11px] text-paper hover:text-signal break-all"
+      >
+        {submitTx}
+      </a>
+
+      <div className="space-y-2 pt-3 border-t border-line">
+        <div className="text-[10px] uppercase tracking-[0.08em] text-mute">
+          what just happened, in numbers
+        </div>
+        <p className="text-[11px] text-paper/85 leading-relaxed">
+          The chain spent <span className="text-signal">{agg.toLocaleString()} stroops</span>{" "}
+          on ONE verification. Same logical work naively (4 separate verify txs):{" "}
+          <span className="text-foil">{(naivePerTx * 4).toLocaleString()} stroops</span>.
+          That ratio scales: at <span className="text-paper">N = 64</span> you&apos;d save{" "}
+          <span className="text-signal">{factor64.toFixed(1)}×</span>; at <span className="text-paper">N = 1024</span>,{" "}
+          <span className="text-signal">{Math.round(factor1024)}×</span>. The cost line stays flat
+          regardless. That&apos;s the entire OneProof claim, in one transaction.
+        </p>
+      </div>
+
+      <div className="space-y-2 pt-3 border-t border-line">
+        <div className="text-[10px] uppercase tracking-[0.08em] text-mute">
+          what this primitive unlocks
+        </div>
+        <ul className="text-[11px] text-paper/85 leading-relaxed space-y-1.5">
+          <li><span className="text-signal">→</span> private payment pools settling 1024 withdrawals per tx</li>
+          <li><span className="text-signal">→</span> rollup-style L2s on Stellar without protocol changes</li>
+          <li><span className="text-signal">→</span> anonymous voting · DEX batch matching · cross-app composition</li>
+        </ul>
+        <p className="text-[11px] text-mute italic pt-1">
+          See <a href="/#unlocks" className="text-signal hover:text-paper">the full list ↗</a> on the landing page.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3 border-t border-line">
+        <a
+          href={txUrl(submitTx)}
+          target="_blank"
+          rel="noopener"
+          className="text-[12px] text-signal hover:text-paper transition-colors"
+        >
+          inspect on stellar.expert ↗
+        </a>
+        <button onClick={onReset} className="text-[11px] uppercase tracking-[0.08em] text-mute hover:text-paper">
+          run again ↻
+        </button>
+      </div>
     </div>
   );
 }
