@@ -8,12 +8,13 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
-# bb is built with rayon (Rust thread pool); RAYON_NUM_THREADS is the
-# lever that controls FFT + MSM parallelism. The CLI doesn't expose
-# --num_threads on `bb prove` in 0.87.0, but the env var works. Set to
-# 4 to use all 4 vCPUs on shared-cpu-4x.
-[env]
-  RAYON_NUM_THREADS = "4"
+# MEASURED: setting RAYON_NUM_THREADS hurts more than helps.
+#   shared-cpu-4x + RAYON default (bb picks 2) → 62s   ← keep this
+#   shared-cpu-4x + RAYON=4                    → 171s  (worse, memory bw)
+#   performance-2x + RAYON=4                   → 128s  (oversubscribed)
+# bb's internal default thread count is calibrated for the system; leave
+# it alone. The CACHE is what makes repeat calls instant; the first call
+# is what it is.
 
 [http_service]
   internal_port = 8080
