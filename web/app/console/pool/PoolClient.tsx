@@ -227,9 +227,19 @@ function Header() {
       <p className="text-[12px] text-mute pt-2 max-w-3xl leading-relaxed">
         The pool contract holds testnet XLM. Anyone can deposit (your signer is visible).
         Withdrawals settle in batches via ONE aggregated ZK proof — N transfers in one tx.
-        This is the Stellar-specific killer feature: Soroban can verify the proof AND move
-        the assets in the same transaction.
       </p>
+      <div className="mt-3 max-w-3xl border border-line bg-ink-2 p-3">
+        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-signal mb-2">
+          why this had to be on Stellar
+        </div>
+        <p className="text-[12px] text-paper/85 leading-relaxed">
+          On EVM you&apos;d call a verifier contract, then a separate multicall to dispatch
+          transfers. Here, Soroban runs the proof verification AND moves the assets in a
+          single invocation. That atomicity is the Stellar-native primitive — and it&apos;s
+          why the on-chain cost stays at <span className="font-mono text-signal">~136K stroops</span> regardless
+          of how many withdrawals are inside.
+        </p>
+      </div>
     </div>
   );
 }

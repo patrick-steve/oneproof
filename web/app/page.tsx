@@ -41,18 +41,17 @@ export default function Page() {
         <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-8 lg:gap-12 flex-1">
           <div className="flex flex-col justify-center space-y-5 lg:space-y-6 max-w-[600px]">
             <div className="font-mono text-[12px] md:text-[13px] uppercase tracking-[0.14em] text-mute">
-              ZK proof aggregation <span className="text-line mx-2">·</span> Stellar testnet <span className="text-line mx-2">·</span> <span className="text-signal">live</span>
+              Private payments on Stellar <span className="text-line mx-2">·</span> testnet <span className="text-line mx-2">·</span> <span className="text-signal">live</span>
             </div>
             <h1 className="font-display font-semibold text-display-hero text-paper">
               <span className="text-signal">ONE</span> PROOF
               <br />TO RULE THEM ALL.
             </h1>
             <p className="text-body text-paper/85 leading-relaxed max-w-prose">
-              We bundle many zero-knowledge proofs into a single proof, and
-              Stellar verifies that one proof in a <span className="text-signal">single
-              transaction at a fixed cost</span>, no matter how many private
-              operations are inside. The chart on the right is measured on
-              Stellar testnet, today.
+              Send XLM through a <a href="/console/pool" className="text-signal underline decoration-signal/40 underline-offset-2 hover:decoration-signal">private pool on Stellar</a>.
+              We bundle many withdrawals into <span className="text-signal">one transaction at a fixed cost</span>,
+              so the on-chain fee stays flat as the pool grows. The chart on the right is the proof:
+              measured on testnet, today.
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
               <a
@@ -182,14 +181,14 @@ export default function Page() {
         <div className="space-y-8 md:space-y-10 mt-2">
           <Novelty
             n="i"
-            title="first recursive UltraHonk on Stellar"
-            body="Recursive proof aggregation has shipped on Ethereum (Aztec, Polygon Hermez). It hadn't been deployed on Stellar before this — the BN254 host functions Stellar shipped in Protocol 25/26 made it possible, and we're the first project to actually use them for recursive Honk verification. The K=4 aggregator contract is at the address above; the bytes match the proof we generated locally."
-          />
-          <Novelty
-            n="ii"
             title="first Soroban privacy pool with batch settlement"
             body="Privacy pools on EVM chains settle one withdrawal per transaction (Tornado Cash, Privacy Pools). Our oneproof_pool contract verifies an aggregated proof AND dispatches N transfers atomically in one Soroban invocation — only possible because Soroban can hold native assets and run arbitrary verifier logic in the same execution context. EVM would need a verifier call followed by a separate multicall."
             cta={{ label: "deposit + batch-withdraw on testnet →", href: "/console/pool" }}
+          />
+          <Novelty
+            n="ii"
+            title="first recursive UltraHonk on Stellar"
+            body="Recursive proof aggregation has shipped on Ethereum (Aztec, Polygon Hermez). It hadn't been deployed on Stellar before this — the BN254 host functions Stellar shipped in Protocol 25/26 made it possible, and we're the first project to actually use them for recursive Honk verification. The K=4 aggregator contract is at the address above; the bytes match the proof we generated locally."
           />
           <Novelty
             n="iii"
@@ -204,7 +203,7 @@ export default function Page() {
         id="unlocks"
         n="05"
         title="what this unlocks"
-        lead="Fixed on-chain cost changes what's actually buildable. Things that were too expensive to ship on a per-user basis become viable the moment the on-chain bill stops growing with the user count. Six concrete examples."
+        lead="We built #1 already — the privacy pool you just used. The same primitive enables the next five. Fixed on-chain cost changes what's actually buildable: things that were too expensive on a per-user basis become viable the moment the chain's bill stops growing with the user count."
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-10 lg:gap-y-14 mt-2">
           <Unlock
