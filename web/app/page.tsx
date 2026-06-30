@@ -64,6 +64,12 @@ export default function Page() {
                 ▶ watch 90-second demo
               </a>
               <a
+                href="/console/pool"
+                className="inline-flex items-center font-mono text-sm border border-signal text-signal px-5 py-3 hover:bg-signal hover:text-ink transition-colors"
+              >
+                try the privacy pool →
+              </a>
+              <a
                 href={`https://stellar.expert/explorer/testnet/contract/${CONTRACTS.oneproof_verifier}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -183,6 +189,7 @@ export default function Page() {
             n="ii"
             title="first Soroban privacy pool with batch settlement"
             body="Privacy pools on EVM chains settle one withdrawal per transaction (Tornado Cash, Privacy Pools). Our oneproof_pool contract verifies an aggregated proof AND dispatches N transfers atomically in one Soroban invocation — only possible because Soroban can hold native assets and run arbitrary verifier logic in the same execution context. EVM would need a verifier call followed by a separate multicall."
+            cta={{ label: "deposit + batch-withdraw on testnet →", href: "/console/pool" }}
           />
           <Novelty
             n="iii"
@@ -206,6 +213,7 @@ export default function Page() {
             body="Today's privacy pools (think Tornado Cash on Ethereum) settle one withdrawal per transaction. With aggregation, a thousand private withdrawals can be bundled and settled in one. Lower fees per user, much larger anonymity sets."
             metric={`≈ ${RECURSIVE_AT_4.toLocaleString()} stroops`}
             metricSub="for a 1024-user batch · vs ~31M naive"
+            cta={{ label: "← we built this, deposit + withdraw on testnet", href: "/console/pool" }}
           />
           <Unlock
             n="ii"
@@ -453,8 +461,14 @@ function Mono({ children }: { children: ReactNode }) {
 
 // Editorial-style row for the "what's novel here" section. Same shape
 // as Unlock but with a longer-form body and no metric callout — these
-// are claims about what's new, not numeric projections.
-function Novelty({ n, title, body }: { n: string; title: string; body: string }) {
+// are claims about what's new, not numeric projections. Optional CTA
+// for novelties that have a "try it" surface elsewhere on the site.
+function Novelty({
+  n, title, body, cta,
+}: {
+  n: string; title: string; body: string;
+  cta?: { label: string; href: string };
+}) {
   return (
     <div className="space-y-3 max-w-prose">
       <div className="flex items-baseline gap-3">
@@ -462,6 +476,11 @@ function Novelty({ n, title, body }: { n: string; title: string; body: string })
         <h3 className="font-display font-medium text-paper text-xl md:text-2xl">{title}</h3>
       </div>
       <p className="text-body text-mute leading-relaxed">{body}</p>
+      {cta && (
+        <a href={cta.href} className="inline-flex items-center font-mono text-sm text-signal hover:text-paper transition-colors pt-1">
+          {cta.label}
+        </a>
+      )}
     </div>
   );
 }
@@ -471,9 +490,10 @@ function Novelty({ n, title, body }: { n: string; title: string; body: string })
 // on the right. No card chrome — keeps the brand's calm-instrument feel
 // instead of the SaaS-card-grid anti-pattern.
 function Unlock({
-  n, title, body, metric, metricSub,
+  n, title, body, metric, metricSub, cta,
 }: {
   n: string; title: string; body: string; metric: string; metricSub: string;
+  cta?: { label: string; href: string };
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-8 gap-y-4 items-start">
@@ -485,6 +505,11 @@ function Unlock({
         <p className="text-body text-mute leading-relaxed max-w-prose-tight">
           {body}
         </p>
+        {cta && (
+          <a href={cta.href} className="inline-flex items-center font-mono text-sm text-signal hover:text-paper transition-colors">
+            {cta.label}
+          </a>
+        )}
       </div>
       <div className="md:text-right md:min-w-[180px]">
         <div className="font-mono text-signal text-base md:text-lg whitespace-nowrap">{metric}</div>

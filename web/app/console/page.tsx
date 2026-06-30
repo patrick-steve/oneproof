@@ -743,6 +743,12 @@ function WhatJustHappened({
         >
           inspect on stellar.expert ↗
         </a>
+        <a
+          href="/console/pool"
+          className="text-[12px] text-signal hover:text-paper transition-colors"
+        >
+          now move real XLM — try the privacy pool →
+        </a>
         <button onClick={onReset} className="text-[11px] uppercase tracking-[0.08em] text-mute hover:text-paper">
           run again ↻
         </button>
